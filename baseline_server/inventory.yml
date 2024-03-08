@@ -1,0 +1,5 @@
+vmhosts:
+  hosts:
+    rock64vm2:
+  vars:
+    # ansible_become_password: "{{ ansible_password }}"

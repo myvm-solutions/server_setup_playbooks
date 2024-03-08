@@ -1,0 +1,37 @@
+---
+# This playbook contains common plays that will be run on VM Hosts.
+
+- name: install apt packages
+  ansible.builtin.apt:
+    update_cache: yes
+    pkg:
+      - u-boot-tools
+      - bridge-utils
+      - vlan
+      - libvirt-daemon
+      - virtinst
+      - qemu-utils
+      - libvirt-clients
+      - libvirt-daemon-system
+      - dnsmasq
+      - qemu-kvm
+      - qemu-efi
+      - qemu-efi-arm
+      - ipxe-qemu
+
+# TODO:
+
+# name=NAS1
+# nfshost=10.255.254.1
+# nfspath=/mnt/vms/backing
+# mntpnt=/var/lib/libvirt/images/$name
+# sudo mkdir $mntpnt
+# sudo virsh pool-define-as --type netfs --source-host $nfshost --source-path $nfspath --source-format nfs --target $mntpnt --name $name #--print-xml
+# sudo virsh pool-autostart $name
+# sudo virsh pool-start $name
+
+# systemctl stop ksmtuned
+# systemctl stop ksm
+# systemctl disable ksm
+# systemctl disable ksmtuned
+# apt purge ksm ?
