@@ -3,7 +3,7 @@
 
 - name: install apt packages
   ansible.builtin.apt:
-    update_cache: yes
+    update_cache: no
     pkg:
       - u-boot-tools
       - bridge-utils
@@ -18,6 +18,16 @@
       - qemu-efi
       - qemu-efi-arm
       - ipxe-qemu
+
+- name: install additional GUI packages
+  when:
+    - install_vm_gui is defined
+    - install_vm_gui
+  ansible.builtin.apt:
+    update_cache: no
+    pkg:
+      - netcat  # for vga/virtio/spice
+      - seabios # for vga/virtio/spice
 
 # TODO:
 
