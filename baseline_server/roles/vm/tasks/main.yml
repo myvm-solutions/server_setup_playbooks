@@ -28,6 +28,7 @@
     pkg:
       - netcat  # for vga/virtio/spice
       - seabios # for vga/virtio/spice
+      # - vgabios # installed but maybe not needed?
 
 # TODO:
 
