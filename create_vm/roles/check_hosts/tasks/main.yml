@@ -1,0 +1,6 @@
+---
+# This playbook check status of VMHosts and picks appropriate destinations
+
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts

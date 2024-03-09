@@ -1,0 +1,20 @@
+---
+# This playbook creates VM Guests
+
+# Copy uefi nvram
+# dest: /var/lib/libvirt/qemu/nvram/{{ vm_name }}_VARS.fd
+
+# If clone, map nbd (and mount or symlink?)
+
+# Defining a VM and making it autostart with host. VM will be off after this task
+- name: Define vm from xml and set autostart
+  community.libvirt.virt:
+    command: define
+    xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+    autostart: true
+
+
+- name: Start a VM
+  community.libvirt.virt:
+    name: alpha
+    state: running
