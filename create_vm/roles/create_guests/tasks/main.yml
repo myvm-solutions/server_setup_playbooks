@@ -1,20 +1,101 @@
 ---
 # This playbook creates VM Guests
+- ansible.builtin.debug:
+    var: hostvars['rock64vm2']
+    # var: hostvars
+- ansible.builtin.debug:
+    var: hostvars[inventory_hostname_short]['groups']
 
-# Copy uefi nvram
-# dest: /var/lib/libvirt/qemu/nvram/{{ vm_name }}_VARS.fd
+- name: Choose VMHOST
+  set_fact:
+    vm_name: "{{ inventory_hostname_short }}"
+    # libvirt_uri: qemu+ssh://root@rock64vm2/system
+    # libvirt_uri: qemu+ssh://rock64vm2/system
+    libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
+    selected_host: "{{ hostvars[first_vmhost]['selected_host'] | default(first_vmhost) }}"
+  vars:
+    # first_vmhost: "{{ hostvars[inventory_hostname_short]['groups']['vmhosts'][0] }}"
+    first_vmhost: "{{ groups['vmhosts'] | first }}"
+  # TODO:
+  #   - Choose best host (lowest usage, max avialable ram, etc.)
+  #   - Ensure unique hosts for each guest
+
+- debug: var=libvirt_uri
+  # delegate_to: localhost
+- debug: var=libvirt_uri
+  delegate_to: localhost
+- debug: var=selected_host
+  # delegate_to: localhost
+- ansible.builtin.debug:
+    var: hostvars[item]['selected_host']
+  with_items: "{{ groups['vmhosts'] }}"
+  run_once: true
+  delegate_to: localhost
+- ansible.builtin.debug:
+    var: hostvars[item]['libvirt_uri']
+  with_items: "{{ groups['vmhosts'] }}"
+  run_once: true
+  delegate_to: localhost
+
+# - fail: # stop for debugging
+
+
+
+# Create root ssh keys in target vmhost, and add to that hosts root authorized keys
+# Otherwise libvirt hangs. Security hole?
+# Do we need to ditch libvirt?
+
 
 # If clone, map nbd (and mount or symlink?)
 
-# Defining a VM and making it autostart with host. VM will be off after this task
+# Ensure NFS 'settings' drive for vdb
+#   <source file='/var/lib/libvirt/images/nfs-pool/{{ vm_name }}-settings.img'/>
+
+# Randomize UUID? does virt-sysprep do this?
+  # <uuid>94bb6ed1-a20d-423f-a426-2ddb4b01f23a</uuid>
+
+# Randomize interface mac addresses? does virt-sysprep do this?
+#     <interface type='network'>
+#       <mac address='52:54:00:80:33:b3'/>
+#       <source network='default'/>
+#       ...
+#     <interface type='bridge'>
+#       <mac address='52:54:00:d6:b6:af'/>
+#       <source bridge='br1'/>
+#       ...
+
+# - name: "Check pools on {{ selected_host }}"
+#   community.libvirt.virt_pool:
+#     uri: "{{ libvirt_uri }}"
+#     command: start
+#     name: "{{ item }}"
+#   register: pools
+#   delegate_to: "{{ selected_host }}"
+#   with_items:
+#     - default
+#     - nvram
+# XML IMPORT ISSUES
+# "msg": "The `lxml` module is not importable. Check the requirements."
+
+# - debug: var=pools
+
+
+
+# Defining a VM and making it autostart with host (or not). VM will be off after this task
 - name: Define vm from xml and set autostart
   community.libvirt.virt:
+    uri: "{{ libvirt_uri }}"
     command: define
+    autostart: false
+    # command: create
+    # name: "{{ vm_name }}"
+    # state: running
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
-    autostart: true
-
+  delegate_to: "{{ selected_host }}"
 
 - name: Start a VM
   community.libvirt.virt:
-    name: alpha
+    uri: "{{ libvirt_uri }}"
+    name: "{{ vm_name }}"
     state: running
+  delegate_to: "{{ selected_host }}"

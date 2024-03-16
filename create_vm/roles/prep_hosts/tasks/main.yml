@@ -1,0 +1,72 @@
+---
+# This playbook check status of VMHosts and picks appropriate destinations
+
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts
+
+
+- name: Choose VMHOST
+  set_fact:
+    # libvirt_uri: qemu+ssh://root@rock64vm2/system
+    libvirt_uri: "qemu+ssh://{{ use_host }}/system"
+    # t1: "{{ inventory_hostname_short }}"
+    selected_host: "{{ item }}"
+    t3: "{{ t3 | default([]) + [use_host] }}"
+  # TODO:
+  #   - Choose best host (lowest usage, max avialable ram, etc.)
+  #   - Ensure unique hosts for each guest
+  vars:
+    use_host: "{{ item }}" # Tesing... obviously dosn't work for more than 1 host
+  with_items: "{{ groups['vmhosts'] }}"
+  run_once: true
+  delegate_to: localhost
+
+- debug: var=libvirt_uri
+  run_once: true
+- debug: var=selected_host
+  run_once: true
+- debug: var=t3
+  run_once: true
+
+# sudo virsh pool-list
+# sudo virsh net-list
+
+# Ensure virt pool is mounted
+# sudo mount -t nfs rockpronas1:blackpool/backup/virt /var/lib/libvirt/images/nfs-pool/
+# possibly use community.libvirt.virt_pool but lxml error
+- name: Mount NFS Virt dir
+  ansible.posix.mount:
+    src: rockpronas1:blackpool/backup/virt
+    path: /var/lib/libvirt/images/nfs-pool/
+    fstype: nfs
+    state: mounted
+    # opts: ro,noauto
+
+# Ensure default net is online
+# Ensure bridge (br1) is created
+
+# Copy uefi nvram
+# dest: /var/lib/libvirt/qemu/nvram/{{ item }}_VARS.fd
+- name: Copy an NVRAM file on the remote machine for new VM
+  ansible.builtin.copy:
+    src: "{{ nvram_path }}/{{ nvram_src_file }}"
+    # /usr/share/AAVMF/AAVMF_CODE.fd ?
+    dest: "{{ nvram_path }}/{{ item }}_VARS.fd"
+    remote_src: yes
+    mode: "600"
+    owner: "libvirt-qemu"
+    group: "kvm"
+  vars:
+    nvram_path: /var/lib/libvirt/qemu/nvram
+    # nvram_src_file: clone1_VARS.bak
+    nvram_src_file: rocky9-three_VARS.fd
+  with_items: "{{ groups['vmguests'] }}"
+  run_once: true
+  delegate_to: "{{ selected_host }}"
+  # when: false #skip for testing...
+
+# chown/chmod to
+#   -rw------- 1 libvirt-qemu kvm
+
+# If clone, map nbd (and mount or symlink?)

@@ -1,6 +1,7 @@
 vmhosts:
   hosts:
     rock64vm2:
+    # rockprovm:
   vars:
     # ansible_become_password: "{{ ansible_password }}"
 vmguests:

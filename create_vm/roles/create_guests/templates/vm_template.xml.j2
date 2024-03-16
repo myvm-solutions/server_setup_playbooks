@@ -1,12 +1,11 @@
 <!--
 WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
 OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
-  virsh edit DB-Master
-or other application using the libvirt API.
+  MyVM Solutions 'create_vm' playbook.
 -->
 
 <domain type='kvm'>
-  <name>DB-Master</name>
+  <name>{{ vm_name }}</name>
   <uuid>94bb6ed1-a20d-423f-a426-2ddb4b01f23a</uuid>
   <metadata>
     <libosinfo:libosinfo xmlns:libosinfo="http://libosinfo.org/xmlns/libvirt/domain/1.0">
@@ -22,7 +21,7 @@ or other application using the libvirt API.
   <os>
     <type arch='aarch64' machine='virt-6.2'>hvm</type>
     <loader readonly='yes' type='pflash'>/usr/share/AAVMF/AAVMF_CODE.fd</loader>
-    <nvram>/var/lib/libvirt/qemu/nvram/DB-Master_VARS.fd</nvram>
+    <nvram>/var/lib/libvirt/qemu/nvram/{{ vm_name }}_VARS.fd</nvram>
     <boot dev='hd'/>
   </os>
   <features>
@@ -44,7 +43,7 @@ or other application using the libvirt API.
     </disk>
     <disk type='file' device='disk'>
       <driver name='qemu' type='raw'/>
-      <source file='/var/lib/libvirt/images/nfs-pool/db-master-settings.img'/>
+      <source file='/var/lib/libvirt/images/nfs-pool/{{ vm_name | lower }}-settings.img'/>
       <target dev='vdb' bus='virtio'/>
       <address type='pci' domain='0x0000' bus='0x09' slot='0x00' function='0x0'/>
     </disk>

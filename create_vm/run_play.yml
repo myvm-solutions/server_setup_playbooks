@@ -1,44 +1,34 @@
 ---
-# This playbook deploys the whole application stack in this site.
+# This playbook deploys VMs
 
-- name: Check VM Host availability
+- name: Check VM Host availability and prep
   hosts: vmhosts
   remote_user: garrettj
   become: yes
-  gather_facts: yes
+  # gather_facts: yes
+  gather_facts: no  # Speed up debugging
+  tags: prep
 
   roles:
-    - check_hosts
+    - prep_hosts
 
-- name: configure and deploy the webservers and application code
+- name: Deploy the VMs
   hosts: vmguests
   remote_user: garrettj
   become: yes
+  # remote_user: root
+  # become: no
   gather_facts: no
+  tags: deploy
 
   roles:
-    - create_hosts
-
-# - name: configure and deploy the webservers and application code
-#   hosts: webservers
-#   remote_user: root
-
-#   roles:
-#     - web
-
-# - name: deploy MySQL and configure the databases
-#   hosts: dbservers
-#   remote_user: root
-
-#   roles:
-#     - db
-
+    - create_guests
 
 - name: Print final messages
   hosts: all
-  # remote_user: root
   remote_user: garrettj
   gather_facts: no
+  tags: always
 
   roles:
     - end_messages
