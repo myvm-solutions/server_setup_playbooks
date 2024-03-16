@@ -1,5 +1,6 @@
 vmhosts:
   hosts:
     rock64vm2:
+      # ansible_host: 192.168.1.197
   vars:
     # ansible_become_password: "{{ ansible_password }}"

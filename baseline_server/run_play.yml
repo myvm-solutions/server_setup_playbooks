@@ -10,7 +10,7 @@
   roles:
     - common
 
-- name: configure and deploy the webservers and application code
+- name: configure and prep VM Hosts
   hosts: vmhosts
   remote_user: garrettj
   become: yes
