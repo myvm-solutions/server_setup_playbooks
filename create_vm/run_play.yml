@@ -19,7 +19,7 @@
   # remote_user: root
   # become: no
   gather_facts: no
-  tags: deploy
+  tags: deploy, clone
 
   roles:
     - create_guests

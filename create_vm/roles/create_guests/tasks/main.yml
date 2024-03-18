@@ -1,14 +1,15 @@
 ---
 # This playbook creates VM Guests
-- ansible.builtin.debug:
-    var: hostvars['rock64vm2']
-    # var: hostvars
-- ansible.builtin.debug:
-    var: hostvars[inventory_hostname_short]['groups']
+# - ansible.builtin.debug:
+#     var: hostvars['rock64vm2']
+#     # var: hostvars
+# - ansible.builtin.debug:
+#     var: hostvars[inventory_hostname_short]['groups']
 
-- name: Choose VMHOST
+- name: Choose VMHOST and set other Facts
   set_fact:
     vm_name: "{{ inventory_hostname_short }}"
+    file_server: rockpronas1
     # libvirt_uri: qemu+ssh://root@rock64vm2/system
     # libvirt_uri: qemu+ssh://rock64vm2/system
     libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
@@ -47,14 +48,54 @@
 
 
 # If clone, map nbd (and mount or symlink?)
+- name: "Configure NBD export on {{ file_server }}"
+  when: clone_id is defined
+  ansible.builtin.template:
+    src: "nbd_cow.conf.j2"
+    dest: "/etc/nbd-server/conf.d/{{ vm_name }}.conf"
+  delegate_to: "{{ file_server }}"
+  tags: clone
+
+- name: Force nbd-server to reload the config
+  # ansible.builtin.systemd_service:
+  #   state: reloaded
+  #   name: nbd-server
+  # NOT a true systemd service on rockpronas1, and
+  # systemd-sysv-generator doesn't recognize reload cmd
+  ansible.builtin.command:
+    cmd: service nbd-server reload
+  delegate_to: "{{ file_server }}"
+  tags: clone
+  when: false
+  # Currently just kills the process, not sure how to proceed
+  # Doesn't kill it if something's already connected?
+
+# TODO:
+# - figure out NBD TLS
+# - figure out dynamic /dev/nbdX device
+
+- name: "Map NBD export from {{ file_server }} to {{ selected_host }}"
+  when: clone_id is defined
+  ansible.builtin.command:
+    cmd: "nbd-client -N {{ vm_name }} {{ file_server }} /dev/nbd{{ clone_id }} -t {{ timeout }} -C {{ conns }} -b {{ block_size }} -persist"
+  delegate_to: "{{ selected_host }}"
+  tags: clone
+  vars:
+    timeout: '5'
+    conns: '1'  # '4'
+    block_size: '4096'
+# block nbd1: server does not support multiple connections per device
+
 
 # Ensure NFS 'settings' drive for vdb
 #   <source file='/var/lib/libvirt/images/nfs-pool/{{ vm_name }}-settings.img'/>
 
 # Randomize UUID? does virt-sysprep do this?
   # <uuid>94bb6ed1-a20d-423f-a426-2ddb4b01f23a</uuid>
-
+  # automatically done by libvirt when omitting from xml
+  
 # Randomize interface mac addresses? does virt-sysprep do this?
+  # automatically done by libvirt when omitting from xml
 #     <interface type='network'>
 #       <mac address='52:54:00:80:33:b3'/>
 #       <source network='default'/>
@@ -73,16 +114,30 @@
 #   delegate_to: "{{ selected_host }}"
 #   with_items:
 #     - default
-#     - nvram
+#     - nvramversion 1.3.0
 # XML IMPORT ISSUES
 # "msg": "The `lxml` module is not importable. Check the requirements."
+#  sudo yum install libxml2-devel libxslt-devel
+#  pip install --upgrade lxml
+# setuptools error
+
 
 # - debug: var=pools
 
-
+# requires community.libvirt version 1.3.0 and pip lxml installed by root on vmhost
+- name: Ensure no existing/conflicting VM (keep its nvram)
+  delegate_to: "{{ selected_host }}"
+  community.libvirt.virt:
+    uri: "{{ libvirt_uri }}"
+    name: "{{ vm_name }}"
+    command: undefine
+    flags: keep_nvram
+    # force: true
+  ignore_errors: true
 
 # Defining a VM and making it autostart with host (or not). VM will be off after this task
-- name: Define vm from xml and set autostart
+- name: Define vm from xml and disable autostart
+  delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
     uri: "{{ libvirt_uri }}"
     command: define
@@ -91,11 +146,26 @@
     # name: "{{ vm_name }}"
     # state: running
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
-  delegate_to: "{{ selected_host }}"
 
 - name: Start a VM
+  delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
     uri: "{{ libvirt_uri }}"
     name: "{{ vm_name }}"
     state: running
-  delegate_to: "{{ selected_host }}"
+  # when: false
+
+# Wait for boot?
+
+# Get current firewall info:
+# ansible vmguests -m ansible.posix.firewalld_info -i inventory.yml --become -K
+
+# # This module needs python-firewall or python3-firewall on managed nodes.
+# - name: permit traffic in default zone for https service
+#   ansible.posix.firewalld:
+#     service: galera
+#     permanent: true
+#     state: enabled
+# Already added to DB-Master with:
+# firewall-cmd --zone=public --add-service=galera --permanent
+# remove cockpit service?

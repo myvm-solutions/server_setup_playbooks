@@ -1,0 +1,12 @@
+##
+# WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+# OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+#   MyVM Solutions 'create_vm' playbook.
+##
+
+[{{ vm_name }}]
+	exportname = /blackpool/backup/virt/{{ clone_from }}.raw
+	copyonwrite = true
+	cowdir = /blackpool/backup/nbd-cow
+	# sparse_cow = true  # Needs testing with minimal writes...
+	# Using sparse_cow may be faster when much is being written during a connection
