@@ -18,6 +18,7 @@
       - qemu-efi
       - qemu-efi-arm
       - ipxe-qemu
+      - nbd-client
 
 - name: install additional GUI packages
   when:
