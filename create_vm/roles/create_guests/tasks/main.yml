@@ -10,6 +10,7 @@
   set_fact:
     vm_name: "{{ inventory_hostname_short }}"
     file_server: rockpronas1
+    dhcp_server: "192.168.0.252"  # DrSUSE
     # libvirt_uri: qemu+ssh://root@rock64vm2/system
     # libvirt_uri: qemu+ssh://rock64vm2/system
     libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
@@ -20,6 +21,7 @@
   # TODO:
   #   - Choose best host (lowest usage, max avialable ram, etc.)
   #   - Ensure unique hosts for each guest
+  #   - Ensure guest isn't already running on this (or other) host
 
 - debug: var=libvirt_uri
   # delegate_to: localhost
@@ -55,18 +57,24 @@
     dest: "/etc/nbd-server/conf.d/{{ vm_name }}.conf"
   delegate_to: "{{ file_server }}"
   tags: clone
+  register: nbd_configure
 
 - name: Force nbd-server to reload the config
-  # ansible.builtin.systemd_service:
+  ansible.builtin.systemd_service:
   #   state: reloaded
-  #   name: nbd-server
+    state: restarted
+    name: nbd-server
   # NOT a true systemd service on rockpronas1, and
   # systemd-sysv-generator doesn't recognize reload cmd
-  ansible.builtin.command:
-    cmd: service nbd-server reload
+  # ansible.builtin.command:
+  #   cmd: service nbd-server reload
   delegate_to: "{{ file_server }}"
+  # become: true
+  run_once: true
   tags: clone
-  when: false
+  when:
+    - clone_id is defined
+    - nbd_configure.changed
   # Currently just kills the process, not sure how to proceed
   # Doesn't kill it if something's already connected?
 
@@ -75,7 +83,9 @@
 # - figure out dynamic /dev/nbdX device
 
 - name: "Map NBD export from {{ file_server }} to {{ selected_host }}"
-  when: clone_id is defined
+  when: true
+    # - clone_id is defined
+    # - nbd_configure.changed
   ansible.builtin.command:
     cmd: "nbd-client -N {{ vm_name }} {{ file_server }} /dev/nbd{{ clone_id }} -t {{ timeout }} -C {{ conns }} -b {{ block_size }} -persist"
   delegate_to: "{{ selected_host }}"
@@ -104,6 +114,27 @@
 #       <mac address='52:54:00:d6:b6:af'/>
 #       <source bridge='br1'/>
 #       ...
+
+# For reliable DHCP with dnsmasq, either
+# - use predictable mac address (above)
+# - delete existing lease (below)
+
+- name: Make sure VMs are not already assigned leases
+  ansible.builtin.lineinfile:
+    path: /var/lib/misc/dnsmasq.leases
+    state: absent
+    regexp: "{{ hostvars[item]['vm_name'] }}"
+  with_items: "{{ groups['vmguests'] }}"
+  run_once: true
+  delegate_to: "{{ dhcp_server }}"
+
+- name: Force dnsmasq to reload the config
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: dnsmasq
+  run_once: true
+  delegate_to: "{{ dhcp_server }}"
+
 
 # - name: "Check pools on {{ selected_host }}"
 #   community.libvirt.virt_pool:
