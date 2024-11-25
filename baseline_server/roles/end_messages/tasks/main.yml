@@ -4,6 +4,7 @@
 - name: Print all available facts
   ansible.builtin.debug:
     var: ansible_facts
+  when: false
 
 - name: Print SELinux status if available
   ansible.builtin.debug:

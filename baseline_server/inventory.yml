@@ -1,6 +1,10 @@
 vmhosts:
   hosts:
-    rock64vm2:
-      # ansible_host: 192.168.1.197
+    # rock64vm2:
+    #   # ansible_host: 192.168.1.197
+    rock64vm3:
+    rock64vm4:
+    rock64vm5:
+    rock64vm6:
   vars:
     # ansible_become_password: "{{ ansible_password }}"

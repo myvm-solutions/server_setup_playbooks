@@ -4,6 +4,7 @@
 - name: Set playbook vars
   set_fact:
     bridge_num: "1"
+    dhcp_server: "192.168.0.252"  # DrSUSE
 
 - name: test to see if selinux is running
   command: getenforce
@@ -25,6 +26,7 @@
       - net-tools
       - traceroute
       - nfs-common
+      - rxvt-unicode  # available on Armbian Jammy
       # - rxvt-unicode-256color
 
 - name: Configure systemd bridge device
@@ -35,6 +37,7 @@
   with_items:
     - netdev
     - network
+  register: bridge_device
 
 - name: Configure systemd bridge members
   when: bridge_num is defined
@@ -44,7 +47,7 @@
   with_items:
     - eth
     - enx
-
+  register: bridge_members
 
 # This task is important, but make sure systemd-networkd is working/configured before enabling
 - name: Purge Network-Manager
@@ -55,20 +58,52 @@
     pkg:
       - network-manager
   when: bridge_num is defined # only when above bridge task ran
-  # when: false
+  register: nm_purged
 
-- name: Enable service httpd and ensure it is not masked
+- name: Enable service systemd-networkd # and ensure it is not masked
   ansible.builtin.systemd_service:
     name: systemd-networkd
     # do we need separate services to unmask BEFORE enabling?
     enabled: true
     masked: no
   when: bridge_num is defined # always run this task when above bridge and NM task have run
+  register: systemd_enabled
 
+- name: Check if reboot is required
+  set_fact:
+    needs_reboot: "{{ systemd or nm or device or members }}"
+  vars:
+    systemd: "{{ systemd_enabled.changed }}"
+    nm: "{{ nm_purged.changed }}"
+    device: "{{ bridge_device.changed }}"
+    members: "{{ bridge_members.changed }}"
 
-# consider rebooting after reconfiguring network
-# or manual check of settings before reboot?
-# auto check that systemd-networkd is enabled and NM  is purged?
+# - debug:
+#     var: needs_reboot
+
+# Delete entris from DHCP leases file after reconfiguring netdevs
+- name: Clear entries from DHCP leases
+  ansible.builtin.lineinfile:
+    path: /var/lib/misc/dnsmasq.leases
+    regexp: "(?i){{ item }}"
+    state: absent
+  loop: "{{ ansible_play_batch }}"
+  run_once: true
+  delegate_to: DrSuse
+  when: hostvars[item]['needs_reboot']
+
+- name: Restart DHCP service
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: dnsmasq.service
+  run_once: true
+  delegate_to: DrSuse
+
+- name: Reboot hosts
+  ansible.builtin.reboot:
+  # when: systemd_enabled.changed == true
+  when: needs_reboot
+
 
 
 # TODO:
