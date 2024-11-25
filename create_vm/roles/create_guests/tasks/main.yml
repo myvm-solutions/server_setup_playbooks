@@ -123,7 +123,7 @@
   ansible.builtin.lineinfile:
     path: /var/lib/misc/dnsmasq.leases
     state: absent
-    regexp: "{{ hostvars[item]['vm_name'] }}"
+    regexp: "(?i){{ hostvars[item]['vm_name'] }}"
   with_items: "{{ groups['vmguests'] }}"
   run_once: true
   delegate_to: "{{ dhcp_server }}"
