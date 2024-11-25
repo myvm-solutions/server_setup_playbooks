@@ -89,7 +89,7 @@
     state: absent
   loop: "{{ ansible_play_batch }}"
   run_once: true
-  delegate_to: DrSuse
+  delegate_to: "{{ dhcp_server }}"
   when: hostvars[item]['needs_reboot']
 
 - name: Restart DHCP service
@@ -97,7 +97,7 @@
     state: restarted
     name: dnsmasq.service
   run_once: true
-  delegate_to: DrSuse
+  delegate_to: "{{ dhcp_server }}"
 
 - name: Reboot hosts
   ansible.builtin.reboot:
