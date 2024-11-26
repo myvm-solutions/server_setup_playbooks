@@ -12,6 +12,21 @@
   changed_when: false
   ignore_errors: true
   when: false # Have to install/enable SELinux first
+    # The following NEW packages must be installed:
+    #   policycoreutils selinux-utils
+    # and possibly:
+    #   checkpolicy selinux-basics
+
+  # more selinux from armbian forum:
+  # apt install policycoreutils selinux-basics selinux-policy-default auditd
+  # selinux-activate
+  # # prevent lockout:
+  # sudo vi /etc/selinux/config
+  #   SELINUX=permissive
+  # vi /boot/armbianEnv.txt
+  # # add a line: extraargs=selinux=1 security=selinux
+  # # this is needed with stock config where security is unset and SElinux is disabled by default
+
 
 - name: install apt packages
   # Todo: streamline package list for prod
