@@ -11,7 +11,7 @@
   register: sestatus
   changed_when: false
   ignore_errors: true
-  # when: false # Have to install/enable SELinux first
+  when: false # Have to install/enable SELinux first
 
 - name: install apt packages
   # Todo: streamline package list for prod
@@ -28,6 +28,18 @@
       - nfs-common
       - rxvt-unicode  # available on Armbian Jammy
       # - rxvt-unicode-256color
+
+- name: Copy local ssh authorizaiton
+  ansible.builtin.copy:
+    src: ~/.ssh/authorized_keys
+    dest: ~/.ssh/
+    # owner: root
+    # group: root
+    mode: '0644'
+  become: no
+
+
+# Below network configs may belong in VM role or separate one?
 
 - name: Configure systemd bridge device
   when: bridge_num is defined
