@@ -19,6 +19,7 @@
       - qemu-efi-arm
       - ipxe-qemu
       - nbd-client
+      - dmidecode # probably useless on ARM but prevents libvirtd from complaining
 
 - name: install additional GUI packages
   when:
