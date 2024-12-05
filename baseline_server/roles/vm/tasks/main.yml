@@ -1,5 +1,5 @@
 ---
-# This playbook contains common plays that will be run on VM Hosts.
+# This playbook contains specific tasks to configure VM Hosts.
 
 - name: install apt packages
   ansible.builtin.apt:
