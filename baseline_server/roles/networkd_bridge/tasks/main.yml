@@ -16,6 +16,7 @@
     - netdev
     - network
   register: bridge_device
+  notify: reboot_host
 
 - name: Configure systemd bridge members
   when: bridge_num is defined
@@ -26,6 +27,7 @@
     - eth
     - enx
   register: bridge_members
+  notify: reboot_host
 
 - name: Enable service systemd-networkd # and ensure it is not masked
   ansible.builtin.systemd_service:
@@ -35,6 +37,7 @@
     masked: no
   when: bridge_num is defined # always run this task when above bridge and NM task have run
   register: systemd_enabled
+  notify: reboot_host
 
 # This should be accomplished with handlers
 - name: Check if reboot is required
@@ -58,7 +61,8 @@
     autoremove: yes
     pkg:
       - network-manager
-  when: purge_nm # only when all networkd bridge tasks succeed
+      - wpasupplicant
+  # when: purge_nm # only when all networkd bridge tasks succeed
   # register: nm_purged
 
 # Below should be reconfigured as handlers
@@ -73,15 +77,15 @@
   run_once: true
   delegate_to: "{{ dhcp_server }}"
   when: hostvars[item]['needs_reboot']
-# notify restart dhcp
+  notify: restart_dhcp
 
-# test to see if handler is run once with notifies from multiple hosts
-- name: Restart DHCP service
-  ansible.builtin.systemd_service:
-    state: restarted
-    name: dnsmasq.service
-  run_once: true
-  delegate_to: "{{ dhcp_server }}"
+# # test to see if handler is run once with notifies from multiple hosts
+# - name: Restart DHCP service
+#   ansible.builtin.systemd_service:
+#     state: restarted
+#     name: dnsmasq.service
+#   run_once: true
+#   delegate_to: "{{ dhcp_server }}"
 
 - name: Reboot hosts
   ansible.builtin.reboot:

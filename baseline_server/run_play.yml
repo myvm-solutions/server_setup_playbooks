@@ -2,13 +2,15 @@
 # This playbook deploys the whole application stack in this site.
 
 - name: apply common configuration to all nodes
-  hosts: vmhosts
+  hosts: all
   remote_user: garrettj
   become: yes
   gather_facts: yes
 
   roles:
     - common
+    - networkd_bridge
+    - selinux
 
 - name: configure and prep VM Hosts
   hosts: vmhosts
@@ -18,6 +20,9 @@
 
   roles:
     - vm
+
+
+
 
 # - name: configure and deploy the webservers and application code
 #   hosts: webservers

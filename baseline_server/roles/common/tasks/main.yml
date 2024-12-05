@@ -1,20 +1,45 @@
 ---
 # This playbook contains common plays that will be run on all nodes.
 
-- name: test to see if selinux is running
-  command: getenforce # or sestatus for more detials?
-  register: sestatus
-  changed_when: false
-  ignore_errors: true
-  when: false # Have to install/enable SELinux first
+# Set these in global vars file?
+- name: Set playbook vars
+  set_fact:
+    disable_armbian_services:
+      - armbian-zram-config
+      - armbian-ramlog
+      # - unattended-upgrades # ??? what's this even do?
+
+# - name: test to see if selinux is running
+#   command: getenforce # or sestatus for more detials?
+#   register: sestatus
+#   changed_when: false
+#   ignore_errors: true
+#   when: false # Have to install/enable SELinux first
 
 # no journal after selinux, maybe try disabling armbian-ramlog? ...success
 
 # sudo vi /etc/default/armbian-ramlog
 # sudo systemctl disable armbian-ramlog
-
 # sudo vi /etc/default/armbian-zram-config
 # sudo systemctl disable armbian-zram-config
+
+- name: Disable Armbian configs
+  ansible.builtin.lineinfile:
+    path: "/etc/default/{{ item }}"
+    regexp: '^ENABLED='
+    line: ENABLED=false
+  loop: "{{ disable_armbian_services }}"
+  notify: reboot_host
+
+- name: Disable Armbian services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    masked: true
+    state: stopped
+  loop: "{{ disable_armbian_services }}"
+  notify: reboot_host
+# try stopping processes before proceeding... /var/log/audit is missing and auditd won't start later
 
 - name: install apt packages
   # Todo: streamline package list for prod
