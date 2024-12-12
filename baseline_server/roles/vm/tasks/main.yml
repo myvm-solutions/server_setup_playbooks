@@ -20,6 +20,7 @@
       - ipxe-qemu
       - nbd-client
       - dmidecode # probably useless on ARM but prevents libvirtd from complaining
+      - python3-lxml  # fixes lxml error for libvirt ansible modules
 
 - name: install additional GUI packages
   when:
@@ -31,6 +32,18 @@
       - netcat  # for vga/virtio/spice
       - seabios # for vga/virtio/spice
       # - vgabios # installed but maybe not needed?
+
+# SeLinux:
+# getsebool virt_use_nfs
+# getsebool -a | grep virt
+# sudo setsebool virt_use_nfs on
+
+- name: Set virt_use_nfs flag on and keep it persistent across reboots
+  ansible.posix.seboolean:
+    name: virt_use_nfs
+    state: true
+    persistent: true
+
 
 # TODO:
 
