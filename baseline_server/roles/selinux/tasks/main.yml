@@ -54,6 +54,8 @@
       - selinux-basics
       - selinux-policy-default
       - auditd
+      - python3-semanage  # required for ansible mgmt
+      - python3-selinux   # required for ansible mgmt
   notify: reboot_host
 
   # selinux-activate
@@ -101,3 +103,4 @@
   ansible.utils.fact_diff:
     before: "{{ sestatus_pre }}"
     after: "{{ sestatus_post }}"
+  changed_when: false
