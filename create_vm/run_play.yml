@@ -1,5 +1,6 @@
 ---
 # This playbook deploys VMs
+# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 15
 
 - name: Check VM Host availability and prep
   hosts: vmhosts

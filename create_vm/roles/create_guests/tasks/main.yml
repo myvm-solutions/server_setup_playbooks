@@ -8,16 +8,20 @@
 
 - name: Choose VMHOST and set other Facts
   set_fact:
-    vm_name: "{{ inventory_hostname_short }}"
+    vm_name: "__vm_name"
     file_server: rockpronas1
     dhcp_server: "192.168.0.252"  # DrSUSE
     # libvirt_uri: qemu+ssh://root@rock64vm2/system
     # libvirt_uri: qemu+ssh://rock64vm2/system
-    libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
-    selected_host: "{{ hostvars[first_vmhost]['selected_host'] | default(first_vmhost) }}"
+    # libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
+    # selected_host: "{{ hostvars[first_vmhost]['selected_host'] | default(first_vmhost) }}"
+    selected_host: "{{ host_pairs[__vm_name]['selected_host'] }}"
+    libvirt_uri: "{{ host_pairs[__vm_name]['libvirt_uri'] }}"
   vars:
     # first_vmhost: "{{ hostvars[inventory_hostname_short]['groups']['vmhosts'][0] }}"
-    first_vmhost: "{{ groups['vmhosts'] | first }}"
+    # first_vmhost: "{{ groups['vmhosts'] | first }}"
+    __vm_name: "{{ inventory_hostname_short }}"
+
   # TODO:
   #   - Choose best host (lowest usage, max avialable ram, etc.)
   #   - Ensure unique hosts for each guest
