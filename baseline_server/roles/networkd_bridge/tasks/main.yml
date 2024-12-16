@@ -87,6 +87,6 @@
 #   run_once: true
 #   delegate_to: "{{ dhcp_server }}"
 
-- name: Reboot hosts
-  ansible.builtin.reboot:
-  when: needs_reboot
+# - name: Reboot hosts
+#   ansible.builtin.reboot:
+#   when: needs_reboot
