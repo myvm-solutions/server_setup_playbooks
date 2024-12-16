@@ -6,5 +6,6 @@ vmhosts:
     rock64vm4:
     rock64vm5:
     rock64vm6:
+    rockprovm:
   vars:
     # ansible_become_password: "{{ ansible_password }}"

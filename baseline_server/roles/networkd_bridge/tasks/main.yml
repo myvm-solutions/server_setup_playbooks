@@ -26,6 +26,7 @@
   with_items:
     - eth
     - enx
+    - enp
   register: bridge_members
   notify: reboot_host
 
