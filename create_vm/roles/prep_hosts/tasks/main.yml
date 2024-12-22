@@ -84,6 +84,26 @@
     fstype: nfs
     state: mounted
     # opts: ro,noauto
+  when: false # skip, attempting virt_pool task below
+
+- name: Define a new storage pool
+  community.libvirt.virt_pool:
+    command: define
+    name: "{{ item }}"
+    # autostart: true
+    xml: '{{ lookup("template", "pool_xml_{{ item }}.j2") }}'
+  loop:
+    - nfs-pool
+    - nvram
+
+- name: Activate a new storage pool
+  community.libvirt.virt_pool:
+    state: active
+    name: "{{ item }}"
+    autostart: true
+  loop:
+    - nfs-pool
+    - nvram
 
 # Mounting NFS gives:
 # "Error mounting /var/lib/libvirt/images/nfs-pool/: mount.nfs: Connection refused\n"
