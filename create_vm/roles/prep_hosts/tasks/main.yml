@@ -1,5 +1,5 @@
 ---
-# This playbook check status of VMHosts and picks appropriate destinations
+# This playbook confirms status of VMHosts and picks appropriate destinations
 
 - name: Print all available facts
   ansible.builtin.debug:
@@ -86,24 +86,40 @@
     # opts: ro,noauto
   when: false # skip, attempting virt_pool task below
 
-- name: Define a new storage pool
-  community.libvirt.virt_pool:
-    command: define
-    name: "{{ item }}"
-    # autostart: true
-    xml: '{{ lookup("template", "pool_xml_{{ item }}.j2") }}'
-  loop:
-    - nfs-pool
-    - nvram
 
-- name: Activate a new storage pool
+- name: Set up storage pools
   community.libvirt.virt_pool:
-    state: active
-    name: "{{ item }}"
-    autostart: true
-  loop:
-    - nfs-pool
-    - nvram
+    name: "{{ item[0] }}"
+    command:    "{% if idx % 3 ==0 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    state:      "{% if idx % 3 ==1 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    autostart: "{% if idx % 3 ==2 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    xml:        "{% if item[1] == 'define' %}{{xml_val}}{% else %}{{ omit }}{% endif%}"
+  loop: "{{ pools | product(actions) }}"
+  loop_control:
+    index_var: idx
+    label: "Pool: {{ item[0] }}, Action: {{ label[idx % 3] }}"
+  vars:
+    pools:
+      - nfs-pool
+      - nvram
+    actions:
+      - define
+      - active
+      - true # Autostart
+    xml_val: '{{ lookup("template", "pool_xml_{{ item[0] }}.j2") }}'
+    label:
+      - "Define Pool"
+      - "Activate Pool"
+      - "Set Pool Autostart"
+
+# - name: Activate a new storage pool
+#   community.libvirt.virt_pool:
+#     state: active
+#     name: "{{ item }}"
+#     autostart: true
+#   loop:
+#     - nfs-pool
+#     - nvram
 
 # Mounting NFS gives:
 # "Error mounting /var/lib/libvirt/images/nfs-pool/: mount.nfs: Connection refused\n"
@@ -126,7 +142,8 @@
   vars:
     nvram_path: /var/lib/libvirt/qemu/nvram
     # nvram_src_file: clone1_VARS.bak
-    nvram_src_file: rocky9-three_VARS.fd
+    # nvram_src_file: rocky9-three_VARS.fd
+    nvram_src_file: clone1_VARS.fd
     selected_host: "{{ host_pairs[item]['selected_host'] }}"
   with_items: "{{ groups['vmguests'] }}"
   loop_control:
