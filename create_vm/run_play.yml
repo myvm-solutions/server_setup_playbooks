@@ -1,6 +1,6 @@
 ---
 # This playbook deploys VMs
-# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 15
+# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 30
 
 - name: Check VM Host availability and prep
   hosts: vmhosts
@@ -10,8 +10,16 @@
   gather_facts: no  # Speed up debugging
   tags: prep
 
-  roles:
-    - prep_hosts
+  tasks:
+    - include_role:
+        name: prep_hosts
+
+- name: Propogate VM Host vars to Guests
+  hosts: vmhosts, vmguests
+  gather_facts: no
+  tasks:
+    - include_tasks:
+        file: tasks/propogate_vars.yml
 
 - name: Deploy the VMs
   hosts: vmguests
@@ -22,8 +30,9 @@
   gather_facts: no
   tags: deploy, clone
 
-  roles:
-    - create_guests
+  tasks:
+    - include_role:
+        name: create_guests
 
 - name: Print final messages
   hosts: all
@@ -31,5 +40,6 @@
   gather_facts: no
   tags: always
 
-  roles:
-    - end_messages
+  tasks:
+    - include_role:
+        name: end_messages

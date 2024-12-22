@@ -1,0 +1,39 @@
+---
+# Propogate hostvars from VMHosts to VMGuests
+
+# - debug:
+#     var: hostvars['localhost']
+#   delegate_to: localhost
+
+# - debug:
+#     var: hostvars['localhost']['host_pairs']
+
+- name: CHECK FACTS
+  debug:
+    msg:
+      - "hosts: {{ vmhosts }}"
+      - "first host: {{ first_vmhost }}"
+      - "the vars: {{ hostvars[first_vmhost]['host_pairs'] }}"
+  vars:
+    vmhosts: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) }}" # only select active hosts
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
+
+- name: CHECK FACTS
+  debug:
+    var: hostvars[first_vmhost]
+  vars:
+    vmhosts: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) }}" # only select active hosts
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
+
+- name: SET FACT
+  set_fact:
+    host_pairs: "{{ hostvars[first_vmhost]['host_pairs'] }}"
+    hosts_in_scope: "{{ hostvars[first_vmhost]['hosts_in_scope'] }}"
+  vars:
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
