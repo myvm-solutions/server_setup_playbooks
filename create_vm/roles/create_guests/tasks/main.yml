@@ -6,9 +6,17 @@
 # - ansible.builtin.debug:
 #     var: hostvars[inventory_hostname_short]['groups']
 
+# - debug:
+#     var: hostvars['localhost']
+#   delegate_to: localhost
+#   run_once: true
+
+# - debug:
+#     var: host_pairs
+  
 - name: Choose VMHOST and set other Facts
   set_fact:
-    vm_name: "__vm_name"
+    vm_name: "{{ __vm_name }}"
     file_server: rockpronas1
     dhcp_server: "192.168.0.252"  # DrSUSE
     # libvirt_uri: qemu+ssh://root@rock64vm2/system
@@ -28,21 +36,22 @@
   #   - Ensure guest isn't already running on this (or other) host
 
 - debug: var=libvirt_uri
-  # delegate_to: localhost
-- debug: var=libvirt_uri
-  delegate_to: localhost
+#   # delegate_to: localhost
+# - debug: var=libvirt_uri
+#   delegate_to: localhost
 - debug: var=selected_host
-  # delegate_to: localhost
-- ansible.builtin.debug:
-    var: hostvars[item]['selected_host']
-  with_items: "{{ groups['vmhosts'] }}"
-  run_once: true
-  delegate_to: localhost
-- ansible.builtin.debug:
-    var: hostvars[item]['libvirt_uri']
-  with_items: "{{ groups['vmhosts'] }}"
-  run_once: true
-  delegate_to: localhost
+- debug: var=vm_name
+#   # delegate_to: localhost
+# - ansible.builtin.debug:
+#     var: hostvars[item]['selected_host']
+#   with_items: "{{ groups['vmhosts'] }}"
+#   run_once: true
+#   delegate_to: localhost
+# - ansible.builtin.debug:
+#     var: hostvars[item]['libvirt_uri']
+#   with_items: "{{ groups['vmhosts'] }}"
+#   run_once: true
+#   delegate_to: localhost
 
 # - fail: # stop for debugging
 
@@ -50,8 +59,9 @@
 
 # Create root ssh keys in target vmhost, and add to that hosts root authorized keys
 # Otherwise libvirt hangs. Security hole?
+#  ROCK64VM5 sshd[31205]: fatal: Timeout before authentication for 192.168.0.65 port 59508
 # Do we need to ditch libvirt?
-
+# No, just use delegate_to instead of uri
 
 # If clone, map nbd (and mount or symlink?)
 - name: "Configure NBD export on {{ file_server }}"
@@ -86,7 +96,7 @@
 # - figure out NBD TLS
 # - figure out dynamic /dev/nbdX device
 
-- name: "Map NBD export from {{ file_server }} to {{ selected_host }}"
+- name: "Map NBD export from {{ file_server }} to VMHosts"
   when: true
     # - clone_id is defined
     # - nbd_configure.changed
@@ -98,6 +108,8 @@
     timeout: '5'
     conns: '1'  # '4'
     block_size: '4096'
+  ignore_errors: true # should really have idempotent moduls
+
 # block nbd1: server does not support multiple connections per device
 
 
@@ -131,6 +143,7 @@
   with_items: "{{ groups['vmguests'] }}"
   run_once: true
   delegate_to: "{{ dhcp_server }}"
+  register: deleted_leases
 
 - name: Force dnsmasq to reload the config
   ansible.builtin.systemd_service:
@@ -138,7 +151,7 @@
     name: dnsmasq
   run_once: true
   delegate_to: "{{ dhcp_server }}"
-
+  when: deleted_leases.changed
 
 # - name: "Check pools on {{ selected_host }}"
 #   community.libvirt.virt_pool:
@@ -163,7 +176,7 @@
 - name: Ensure no existing/conflicting VM (keep its nvram)
   delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
-    uri: "{{ libvirt_uri }}"
+    # uri: "{{ libvirt_uri }}"
     name: "{{ vm_name }}"
     command: undefine
     flags: keep_nvram
@@ -174,7 +187,7 @@
 - name: Define vm from xml and disable autostart
   delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
-    uri: "{{ libvirt_uri }}"
+    # uri: "{{ libvirt_uri }}"
     command: define
     autostart: false
     # command: create
@@ -185,7 +198,7 @@
 - name: Start a VM
   delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
-    uri: "{{ libvirt_uri }}"
+    # uri: "{{ libvirt_uri }}"
     name: "{{ vm_name }}"
     state: running
   # when: false

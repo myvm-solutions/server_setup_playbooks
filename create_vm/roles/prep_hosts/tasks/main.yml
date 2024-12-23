@@ -7,13 +7,14 @@
 
 - name: check libvirt stats
   community.libvirt.virt:
-    command: list_vms #"{{ item }}"
+    # command: list_vms #"{{ item }}"
+    command: "{{ item }}"
   register: vm_host_specs
-  # loop:
-  #   - freemem
-  #   - info
-  #   - list_vms
-  #   - nodeinfo
+  loop:
+    - freemem
+    - info
+    - list_vms
+    - nodeinfo
 
 - name: Build list of available VMhosts
   set_fact:
@@ -34,7 +35,7 @@
       - "unsorted: {{ unsorted }}"
       - "{{ ansible_play_hosts }}"
 
-# - debug: var=vm_host_specs
+- debug: var=vm_host_specs
 - debug: var=vm_host_specs.list_vms
 # - fail:
 
