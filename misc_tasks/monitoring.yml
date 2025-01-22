@@ -1,0 +1,43 @@
+
+
+
+
+###############
+### Grafana ###
+###############
+
+# create DB grafana: CREATE DATABASE IF NOT EXITS grafana;
+# create user: CREATE USER GrafUser IDENTIFIED BY changeme;
+# grant permissions to DB: GRANT ALL ON grafana.* TO GrafUser;
+# configure db in /etc/grafana/grafana.ini
+
+
+# getsebool -a | grep grafana 
+# Another essential step was to ensure the httpd_can_network_connect boolean was enabled, allowing HTTP services like Grafana to connect over the network:
+# sudo setsebool -P httpd_can_network_connect on 
+
+
+# SeLinux:
+# getsebool grafana_can_tcp_connect_mysql_port
+# getsebool -a | grep grafana
+# sudo setsebool grafana_can_tcp_connect_mysql_port on
+
+- set_facts:
+    grafana_sebools:
+      - grafana_can_tcp_connect_mysql_port
+      - grafana_can_tcp_connect_prometheus_port
+
+- name: Set virt_use_nfs SELinux flag on & persistent
+  ansible.posix.seboolean:
+    name: grafana_can_tcp_connect_mysql_port
+    state: true
+    persistent: true
+
+
+# sudo grep 'grafana.*3100' /var/log/audit/audit.log
+# type=AVC msg=audit(1737429549.200:1680615): avc:  denied  { name_connect } for  pid=3329 comm="grafana" dest=3100 scontext=system_u:system_r:grafana_t:s0 tcontext=system_u:object_r:unreserved_port_t:s0 tclass=tcp_socket permissive=0
+# ...
+
+# sudo grep 'grafana.*3100' /var/log/audit/audit.log | audit2allow -M grafana_can_tcp_connect_loki_port
+# sudo semodule -i grafana_can_tcp_connect_loki_port.pp
+
