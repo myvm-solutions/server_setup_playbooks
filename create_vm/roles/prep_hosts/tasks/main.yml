@@ -4,7 +4,8 @@
 - name: Print all available facts
   ansible.builtin.debug:
     var: ansible_facts
-
+  when: false
+  
 - name: check libvirt stats
   community.libvirt.virt:
     # command: list_vms #"{{ item }}"
@@ -15,6 +16,7 @@
     - info
     - list_vms
     - nodeinfo
+  when: false
 
 - name: Build list of available VMhosts
   set_fact:
@@ -36,7 +38,11 @@
       - "{{ ansible_play_hosts }}"
 
 - debug: var=vm_host_specs
+  when: not vm_host_specs.skipped
+
 - debug: var=vm_host_specs.list_vms
+  when: not vm_host_specs.skipped
+
 # - fail:
 
 - name: Choose VMhost per VMguest
@@ -75,6 +81,16 @@
 # sudo virsh pool-list
 # sudo virsh net-list
 
+- name: Ensure nfs-pool mount point exists
+  ansible.builtin.file:
+    path: /var/lib/libvirt/images/nfs-pool
+    state: directory
+    # Potentially needs root:root
+    owner: libvirt-qemu
+    group: kvm
+    mode: '0775'
+    # SELinux permissions?
+
 # Ensure virt pool is mounted
 # sudo mount -t nfs rockpronas1:blackpool/backup/virt /var/lib/libvirt/images/nfs-pool/
 # possibly use community.libvirt.virt_pool but lxml error
@@ -89,6 +105,7 @@
 
 
 - name: Set up storage pools
+  when: inventory_hostname_short in hosts_in_scope
   community.libvirt.virt_pool:
     name: "{{ item[0] }}"
     command:    "{% if idx % 3 ==0 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
@@ -127,7 +144,27 @@
 # ensure nfs-server is running on NAS
 
 # Ensure default net is online
-# Ensure bridge (br1) is created
+# Ensure bridge (br1) is created -- should be created in baseline_server playbook
+- name: Ensure networks are active and set to autostart
+  when: inventory_hostname_short in hosts_in_scope
+  community.libvirt.virt_net:
+    state: active
+    name: "{{ item[0] }}"
+    state:      "{% if idx % 2 == 0 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    autostart: "{% if idx % 2 == 1 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+  loop: "{{ nets | product(actions) }}"
+  loop_control:
+    index_var: idx
+    label: "Network: {{ item[0] }}, Action: {{ label[idx % 2] }}"
+  vars:
+    nets:
+      - default
+    actions:
+      - active
+      - true # Autostart
+    label:
+      - "Activate Network"
+      - "Set Network Autostart"
 
 # Copy uefi nvram
 # dest: /var/lib/libvirt/qemu/nvram/{{ item }}_VARS.fd

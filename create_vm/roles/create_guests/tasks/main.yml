@@ -56,7 +56,6 @@
 # - fail: # stop for debugging
 
 
-
 # Create root ssh keys in target vmhost, and add to that hosts root authorized keys
 # Otherwise libvirt hangs. Security hole?
 #  ROCK64VM5 sshd[31205]: fatal: Timeout before authentication for 192.168.0.65 port 59508
@@ -95,10 +94,21 @@
 # TODO:
 # - figure out NBD TLS
 # - figure out dynamic /dev/nbdX device
+# - or use nvme/tcp
+
+- name: "Delete NBD export from {{ file_server }} to VMHosts"
+  when:
+    - clone_id is defined
+    # - nbd_configure.changed
+  ansible.builtin.command:
+    cmd: "nbd-client -d /dev/nbd{{ clone_id }}"
+  delegate_to: "{{ selected_host }}"
+  tags: clone
+  ignore_errors: true # should really have idempotent moduls
 
 - name: "Map NBD export from {{ file_server }} to VMHosts"
-  when: true
-    # - clone_id is defined
+  when:
+    - clone_id is defined
     # - nbd_configure.changed
   ansible.builtin.command:
     cmd: "nbd-client -N {{ vm_name }} {{ file_server }} /dev/nbd{{ clone_id }} -t {{ timeout }} -C {{ conns }} -b {{ block_size }} -persist"
@@ -188,14 +198,14 @@
   delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
     # uri: "{{ libvirt_uri }}"
-    command: define
-    autostart: false
-    # command: create
+    command: define # create persistent domain
+    autostart: false  # requires command: define?
     # name: "{{ vm_name }}"
+    # command: create # create transient domain # Broken: https://github.com/ansible-collections/community.libvirt/issues/41
     # state: running
     xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
 
-- name: Start a VM
+- name: Start the VM
   delegate_to: "{{ selected_host }}"
   community.libvirt.virt:
     # uri: "{{ libvirt_uri }}"

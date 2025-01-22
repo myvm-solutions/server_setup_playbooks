@@ -113,12 +113,12 @@ OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
       <target chassis='9' port='0x10'/>
       <address type='pci' domain='0x0000' bus='0x00' slot='0x02' function='0x0'/>
     </controller>
-    <interface type='network'>
-{#      <mac address='52:54:00:80:33:0{{ clone_id | default("0") }}'/>#}
+{#    <interface type='network'>
+      <mac address='52:54:00:80:33:0{{ clone_id | default("0") }}'/>
       <source network='default'/>
       <model type='virtio'/>
       <address type='pci' domain='0x0000' bus='0x01' slot='0x00' function='0x0'/>
-    </interface>
+    </interface> #}
     <interface type='bridge'>
 {#      <mac address='52:54:00:d6:b6:0{{ clone_id | default("0") }}'/>#}
       <source bridge='br1'/>
