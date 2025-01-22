@@ -1,5 +1,6 @@
 ---
 # This playbook deploys the whole application stack in this site.
+# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 30
 
 - name: apply common configuration to all nodes
   hosts: all

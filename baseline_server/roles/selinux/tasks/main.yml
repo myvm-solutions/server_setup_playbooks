@@ -1,9 +1,11 @@
 ---
 # This role will install and enable selinux
-- name: Set playbook vars
-  set_fact:
-    disable_armbian_services:
-      - armbian-ramlog
+
+# TASK MOVED TO common role
+# - name: Set playbook vars
+#   set_fact:
+#     disable_armbian_services:
+#       - armbian-ramlog
 
   # no journal after selinux... maybe try disabling armbian-ramlog?
   # update: disabling armbian-ramlog BEFORE installing/enabling selinux seems to work
@@ -17,7 +19,7 @@
   #      Loaded: loaded (/lib/systemd/system/systemd-journald.socket; static)
   #      Active: failed (Result: resources)
 
-- name: Get Service Status
+- name: Get RAMLOG Service Status
   ansible.builtin.systemd_service:
     name: "armbian-ramlog.service"
   register: post_service_states
@@ -59,6 +61,7 @@
   notify: reboot_host
 
   # selinux-activate
+  # WARNING: NOT IDEMPOTENT
 - name: Activate selinux
   command: selinux-activate
 
@@ -103,4 +106,4 @@
   ansible.utils.fact_diff:
     before: "{{ sestatus_pre }}"
     after: "{{ sestatus_post }}"
-  changed_when: false
+  changed_when: false # never shows output -- need to ignore timestamps in diff

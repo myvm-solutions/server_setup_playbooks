@@ -38,7 +38,7 @@
 # getsebool -a | grep virt
 # sudo setsebool virt_use_nfs on
 
-- name: Set virt_use_nfs flag on and keep it persistent across reboots
+- name: Set virt_use_nfs SELinux flag on & persistent
   ansible.posix.seboolean:
     name: virt_use_nfs
     state: true

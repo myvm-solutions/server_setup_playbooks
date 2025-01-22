@@ -2,7 +2,7 @@
 # This playbook contains common plays that will be run on all nodes.
 
 # Set these in global vars file?
-- name: Set playbook vars
+- name: Set playbook vars [services to disable]
   set_fact:
     disable_armbian_services:
       - armbian-zram-config
@@ -56,6 +56,7 @@
       - nfs-common
       - rxvt-unicode  # available on Armbian Jammy
       # - rxvt-unicode-256color
+      - prometheus-node-exporter
 
 - name: Copy local ssh authorizaiton
   ansible.builtin.copy:
