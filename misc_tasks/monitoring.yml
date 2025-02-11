@@ -34,10 +34,26 @@
     persistent: true
 
 
+#  To temporarily disable dontaudit rules, allowing all denials to be logged, 
+#  run the following command as the Linux root user:
+# ~]# semodule -DB
+
+#  To rebuild policy and enable dontaudit rules, run the following command as the Linux root user:
+# ~]# semodule -B
+
+
 # sudo grep 'grafana.*3100' /var/log/audit/audit.log
 # type=AVC msg=audit(1737429549.200:1680615): avc:  denied  { name_connect } for  pid=3329 comm="grafana" dest=3100 scontext=system_u:system_r:grafana_t:s0 tcontext=system_u:object_r:unreserved_port_t:s0 tclass=tcp_socket permissive=0
 # ...
 
 # sudo grep 'grafana.*3100' /var/log/audit/audit.log | audit2allow -M grafana_can_tcp_connect_loki_port
 # sudo semodule -i grafana_can_tcp_connect_loki_port.pp
+## is audit2allow the correct path, vs adding the ports to an existing protocol?
 
+
+####################################################
+# Install loki and promtail (and maybe grafana too):
+# https://rpm.grafana.com/
+
+# No logs from promtail journal scrape (rocky):
+# sudo usermod -aG systemd-journal promtail
