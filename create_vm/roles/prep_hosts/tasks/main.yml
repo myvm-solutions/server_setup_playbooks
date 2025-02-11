@@ -1,0 +1,196 @@
+---
+# This playbook confirms status of VMHosts and picks appropriate destinations
+
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts
+  when: false
+  
+- name: check libvirt stats
+  community.libvirt.virt:
+    # command: list_vms #"{{ item }}"
+    command: "{{ item }}"
+  register: vm_host_specs
+  loop:
+    - freemem
+    - info
+    - list_vms
+    - nodeinfo
+  when: false
+
+- name: Build list of available VMhosts
+  set_fact:
+    long_list: "{{ __long_list }}"
+    unsorted: "{{ __long_list | zip(guests) }}"
+  run_once: true
+  delegate_to: localhost
+  vars:
+    __long_list: "{{ hosts * guests|length }}"
+    hosts: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) }}" # only select active hosts
+    guests: "{{ groups['vmguests'] }}"
+    # hosts: "{{ groups['vmhosts']['hosts'] }}"
+    # guests: "{{ groups['vmguests']['hosts'] }}"
+
+- debug: 
+    msg: 
+      - "long list: {{ long_list }}"
+      - "unsorted: {{ unsorted }}"
+      - "{{ ansible_play_hosts }}"
+
+- debug: var=vm_host_specs
+  when: not vm_host_specs.skipped
+
+- debug: var=vm_host_specs.list_vms
+  when: not vm_host_specs.skipped
+
+# - fail:
+
+- name: Choose VMhost per VMguest
+  set_fact:
+    # libvirt_uri: qemu+ssh://root@rock64vm2/system
+    # libvirt_uri: "qemu+ssh://{{ use_host }}/system"
+    # t1: "{{ inventory_hostname_short }}"
+    # selected_host: "{{ item }}"
+    hosts_in_scope: "{{ hosts_in_scope | default([]) + [use_host] }}"
+    host_pairs: "{{ host_pairs| default({}) | combine( { item[1]: __dict } ) }}"
+  # TODO:
+  #   - Choose best host (lowest usage, max avialable ram, etc.)
+  #   - Ensure unique hosts for each guest
+  vars:
+    use_host: "{{ item[0] }}" # Testing... obviously dosn't work for more than 1 host
+    __dict:
+        libvirt_uri: "qemu+ssh://{{ use_host }}/system"
+        selected_host: "{{ use_host }}"
+  loop: "{{ unsorted }}"  #groups['vmhosts'] }}"
+  loop_control:
+    label: "Assigning {{ item[1] }} to {{ item[0] }}"
+  run_once: true
+  delegate_to: localhost
+
+# - debug: var=libvirt_uri
+#   run_once: true
+# - debug: var=selected_host
+#   run_once: true
+- debug: var=hosts_in_scope
+  run_once: true
+- debug: var=host_pairs
+  run_once: true
+
+# - fail:
+
+# sudo virsh pool-list
+# sudo virsh net-list
+
+- name: Ensure nfs-pool mount point exists
+  ansible.builtin.file:
+    path: /var/lib/libvirt/images/nfs-pool
+    state: directory
+    # Potentially needs root:root
+    owner: libvirt-qemu
+    group: kvm
+    mode: '0775'
+    # SELinux permissions?
+
+# Ensure virt pool is mounted
+# sudo mount -t nfs rockpronas1:blackpool/backup/virt /var/lib/libvirt/images/nfs-pool/
+# possibly use community.libvirt.virt_pool but lxml error
+- name: Mount NFS Virt dir
+  ansible.posix.mount:
+    src: rockpronas1:blackpool/backup/virt
+    path: /var/lib/libvirt/images/nfs-pool/
+    fstype: nfs
+    state: mounted
+    # opts: ro,noauto
+  when: false # skip, attempting virt_pool task below
+
+
+- name: Set up storage pools
+  when: inventory_hostname_short in hosts_in_scope
+  community.libvirt.virt_pool:
+    name: "{{ item[0] }}"
+    command:    "{% if idx % 3 ==0 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    state:      "{% if idx % 3 ==1 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    autostart: "{% if idx % 3 ==2 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    xml:        "{% if item[1] == 'define' %}{{xml_val}}{% else %}{{ omit }}{% endif%}"
+  loop: "{{ pools | product(actions) }}"
+  loop_control:
+    index_var: idx
+    label: "Pool: {{ item[0] }}, Action: {{ label[idx % 3] }}"
+  vars:
+    pools:
+      - nfs-pool
+      - nvram
+    actions:
+      - define
+      - active
+      - true # Autostart
+    xml_val: '{{ lookup("template", "pool_xml_{{ item[0] }}.j2") }}'
+    label:
+      - "Define Pool"
+      - "Activate Pool"
+      - "Set Pool Autostart"
+
+# - name: Activate a new storage pool
+#   community.libvirt.virt_pool:
+#     state: active
+#     name: "{{ item }}"
+#     autostart: true
+#   loop:
+#     - nfs-pool
+#     - nvram
+
+# Mounting NFS gives:
+# "Error mounting /var/lib/libvirt/images/nfs-pool/: mount.nfs: Connection refused\n"
+# ensure nfs-server is running on NAS
+
+# Ensure default net is online
+# Ensure bridge (br1) is created -- should be created in baseline_server playbook
+- name: Ensure networks are active and set to autostart
+  when: inventory_hostname_short in hosts_in_scope
+  community.libvirt.virt_net:
+    state: active
+    name: "{{ item[0] }}"
+    state:      "{% if idx % 2 == 0 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+    autostart: "{% if idx % 2 == 1 %}{{item[1]}}{% else %}{{ omit }}{% endif%}"
+  loop: "{{ nets | product(actions) }}"
+  loop_control:
+    index_var: idx
+    label: "Network: {{ item[0] }}, Action: {{ label[idx % 2] }}"
+  vars:
+    nets:
+      - default
+    actions:
+      - active
+      - true # Autostart
+    label:
+      - "Activate Network"
+      - "Set Network Autostart"
+
+# Copy uefi nvram
+# dest: /var/lib/libvirt/qemu/nvram/{{ item }}_VARS.fd
+- name: Copy an NVRAM file on the remote machine for new VM
+  ansible.builtin.copy:
+    src: "{{ nvram_path }}/{{ nvram_src_file }}"
+    # /usr/share/AAVMF/AAVMF_CODE.fd ?
+    dest: "{{ nvram_path }}/{{ item }}_VARS.fd"
+    remote_src: yes
+    mode: "600"
+    owner: "libvirt-qemu"
+    group: "kvm"
+  vars:
+    nvram_path: /var/lib/libvirt/qemu/nvram
+    # nvram_src_file: clone1_VARS.bak
+    # nvram_src_file: rocky9-three_VARS.fd
+    nvram_src_file: clone1_VARS.fd
+    selected_host: "{{ host_pairs[item]['selected_host'] }}"
+  with_items: "{{ groups['vmguests'] }}"
+  loop_control:
+    label: "Creating NVRAM for {{ item }} on {{ selected_host }}"
+  run_once: true
+  delegate_to: "{{ selected_host }}"
+  # when: false #skip for testing...
+
+# chown/chmod to
+#   -rw------- 1 libvirt-qemu kvm
+
+# If clone, map nbd (and mount or symlink?)

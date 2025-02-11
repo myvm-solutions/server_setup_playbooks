@@ -1,0 +1,21 @@
+<pool type="netfs">
+  <name>nfs-pool</name>
+{#  <uuid>0f10d0e7-70b6-4387-8451-615c92bdea2d</uuid>#}
+  <capacity unit="bytes">0</capacity>
+  <allocation unit="bytes">0</allocation>
+  <available unit="bytes">0</available>
+  <source>
+    <host name="rockpronas1"/>
+    <dir path="blackpool/backup/virt"/>
+    <format type="auto"/>
+  </source>
+  <target>
+    <path>/var/lib/libvirt/images/nfs-pool</path>
+    <permissions>
+      <mode>0711</mode>
+      <owner>0</owner>
+      <group>0</group>
+      <label>system_u:object_r:virt_image_t:s0</label>
+    </permissions>
+  </target>
+</pool>

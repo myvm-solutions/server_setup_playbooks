@@ -1,0 +1,179 @@
+# WARNING: THIS IS AN AUTO-GENERATED FILE. CHANGES TO IT ARE LIKELY TO BE
+# OVERWRITTEN AND LOST. Changes to this xml configuration should be made using:
+#   MyVM Solutions 'baseline_server' playbook.
+
+## systemd networkd usb bridge on LTS ##
+echo "[Match]
+Name=enx*
+[Network]
+Bridge=br0" | sudo tee /etc/systemd/network/usb.network
+echo "[NetDev]
+Name=br0
+Kind=bridge" | sudo tee /etc/systemd/network/br0.netdev
+echo "[Match]
+Name=br0
+[Network]
+DHCP=no
+#DHCP=yes" | sudo tee /etc/systemd/network/br0.network
+echo "[Match]
+Name=eth*
+#[Link]
+#RequiredForOnline=no
+#MTUBytes=9000
+[Network]
+DHCP=yes
+#LLDP=yes
+" | sudo tee /etc/systemd/network/gigE.network
+
+##  VSCode settings
+
+
+ to only cycle through tabs of the current window/split view, you can use:
+
+
+
+[
+
+    {
+
+        "key": "ctrl+tab",
+
+        "command": "workbench.action.nextEditorInGroup"
+
+    },
+
+    {
+
+        "key": "ctrl+shift+tab",
+
+        "command": "workbench.action.previousEditorInGroup"
+
+    }
+
+]
+
+ Eliminating pop-ups:
+
+
+
+"editor.inlineSuggest.enabled": false,
+
+"editor.quickSuggestions": {
+
+    "other": "off",
+
+    "comments": "off",
+
+    "strings": "off"
+
+},
+
+"editor.suggest.selectionMode": "never",
+
+"editor.suggestOnTriggerCharacters": false,
+
+"editor.inlayHints.enabled": "offUnlessPressed",
+
+"editor.parameterHints.enabled": false,
+
+"editor.hover.above": false,
+
+"editor.hover.enabled": false,
+
+
+
+
+
+
+Fix ctrl+up/ctrl+down moves line:
+
+
+
+  {
+
+    "key": "ctrl+down",
+
+    "command": "editor.action.moveLinesDownAction",
+
+    "when": "editorTextFocus"
+
+  },
+
+  {
+
+    "key": "ctrl+up",
+
+    "command": "editor.action.moveLinesUpAction",
+
+    "when": "editorTextFocus"
+
+  },
+
+
+
+
+open command palette (ctrl+shift+p)
+
+Preferences: Open Settings (JSON)
+
+ or User Settings (JSON) ??
+
+
+
+    "editor.autoClosingQuotes": "never",
+
+    "editor.autoClosingBrackets": "never",
+
+    "editor.glyphMargin": false,
+
+    "editor.suggestOnTriggerCharacters": false,
+
+    "window.menuBarVisibility": "compact",
+
+    "files.trimTrailingWhitespace": true,
+
+    "files.insertFinalNewline": true,
+
+    "files.trimFinalNewlines": true,
+
+    "files.autoSave": "afterDelay",
+
+
+
+
+
+# Moves menu to activity bar, menu is dark theme
+
+# Title bar is visible in xmonad (not sure if you can hide?)
+
+    "window.menuBarVisibility": "compact",
+
+    "window.titleBarStyle": "custom",
+
+
+
+# Menu bar is toggled with Alt, but ugly light theme (gtk themeable?)
+
+# Title bar is hidden in xmonad
+
+    "window.menuBarVisibility": "toggle",
+
+    "window.titleBarStyle": "native",
+
+
+
+
+
+Fix tabs in yaml?? apparently no, still defaults to 4 spaces
+
+    "editor.tabSize": 2,
+
+    "[python]": {
+
+        "editor.formatOnType": true,
+
+        "editor.insertSpaces": true,
+
+        "editor.tabSize": 4
+
+    },

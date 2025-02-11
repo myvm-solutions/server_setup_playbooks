@@ -1,0 +1,109 @@
+---
+# This role will install and enable selinux
+
+# TASK MOVED TO common role
+# - name: Set playbook vars
+#   set_fact:
+#     disable_armbian_services:
+#       - armbian-ramlog
+
+  # no journal after selinux... maybe try disabling armbian-ramlog?
+  # update: disabling armbian-ramlog BEFORE installing/enabling selinux seems to work
+
+  # garrettj@ROCK64VM3:~$ journalctl
+  # No journal files were found.
+  # -- No entries --
+
+  # garrettj@ROCK64VM3:~$ sudo systemctl status systemd-journal*
+  # × systemd-journald.socket - Journal Socket
+  #      Loaded: loaded (/lib/systemd/system/systemd-journald.socket; static)
+  #      Active: failed (Result: resources)
+
+- name: Get RAMLOG Service Status
+  ansible.builtin.systemd_service:
+    name: "armbian-ramlog.service"
+  register: post_service_states
+
+# - debug:
+#     var: post_service_states
+
+# - name: Show the difference of service states
+#   ansible.utils.fact_diff:
+#     before: "{{ pre_service_states }}"
+#     after: "{{ post_service_states }}"
+
+- debug:
+    msg:
+      - "post_service_states.status.UnitFileState  : {{ post_service_states.status.UnitFileState }}"
+      - "post_service_states.status.LoadState      : {{ post_service_states.status.LoadState }}"
+      - "post_service_states.status.ActiveState    : {{ post_service_states.status.ActiveState }}"
+
+- name: Ensure armbian-ramlog is disabled and/or masked
+  assert:
+    that: post_service_states.status.UnitFileState in ['disabled', 'masked']
+    fail_msg: "Ramlog service invalid state: {{ post_service_states.status.UnitFileState }}"
+    success_msg: "Ramlog service has been {{ post_service_states.status.UnitFileState }}"
+
+
+  # more selinux from armbian forum:
+  # apt install policycoreutils selinux-basics selinux-policy-default auditd
+- name: install selinux packages
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 28800 # 8 Hours
+    pkg:
+      - policycoreutils
+      - selinux-basics
+      - selinux-policy-default
+      - auditd
+      - python3-semanage  # required for ansible mgmt
+      - python3-selinux   # required for ansible mgmt
+  notify: reboot_host
+
+  # selinux-activate
+  # WARNING: NOT IDEMPOTENT
+- name: Activate selinux
+  command: selinux-activate
+
+  # # prevent lockout:
+  # sudo vi /etc/selinux/config
+  #   SELINUX=permissive
+- name: Ensure SELinux is set to permissive mode
+  ansible.builtin.lineinfile:
+    path: /etc/selinux/config
+    regexp: '^SELINUX='
+    line: SELINUX=permissive
+
+  # vi /boot/armbianEnv.txt
+  # # add a line: extraargs=selinux=1 security=selinux
+  # # this is needed with stock config where security is unset and SElinux is disabled by default
+- name: Configure SELinux boot options
+  ansible.builtin.lineinfile:
+    path: /boot/armbianEnv.txt
+    regexp: '^extraargs=(.*?)(?= selinux|$)'
+    backrefs: true
+    line: 'extraargs=\1 selinux=1 security=selinux'
+  notify: reboot_host
+
+- name: Check selinux status
+  # command: getenforce # or sestatus for more detials?
+  command: sestatus
+  register: sestatus_pre
+  changed_when: false
+  ignore_errors: true
+
+- name: Reboot as necessary
+  meta: flush_handlers
+
+- name: Check selinux status
+  # command: getenforce # or sestatus for more detials?
+  command: sestatus
+  register: sestatus_post
+  changed_when: false
+  ignore_errors: true
+
+- name: Show the difference of SELinux states
+  ansible.utils.fact_diff:
+    before: "{{ sestatus_pre }}"
+    after: "{{ sestatus_post }}"
+  changed_when: false # never shows output -- need to ignore timestamps in diff

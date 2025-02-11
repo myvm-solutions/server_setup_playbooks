@@ -1,0 +1,229 @@
+---
+# This playbook creates VM Guests
+# - ansible.builtin.debug:
+#     var: hostvars['rock64vm2']
+#     # var: hostvars
+# - ansible.builtin.debug:
+#     var: hostvars[inventory_hostname_short]['groups']
+
+# - debug:
+#     var: hostvars['localhost']
+#   delegate_to: localhost
+#   run_once: true
+
+# - debug:
+#     var: host_pairs
+  
+- name: Choose VMHOST and set other Facts
+  set_fact:
+    vm_name: "{{ __vm_name }}"
+    file_server: rockpronas1
+    dhcp_server: "192.168.0.252"  # DrSUSE
+    # libvirt_uri: qemu+ssh://root@rock64vm2/system
+    # libvirt_uri: qemu+ssh://rock64vm2/system
+    # libvirt_uri: "{{ hostvars[first_vmhost]['libvirt_uri'] | default('qemu+ssh://' + first_vmhost + '/system') }}"
+    # selected_host: "{{ hostvars[first_vmhost]['selected_host'] | default(first_vmhost) }}"
+    selected_host: "{{ host_pairs[__vm_name]['selected_host'] }}"
+    libvirt_uri: "{{ host_pairs[__vm_name]['libvirt_uri'] }}"
+  vars:
+    # first_vmhost: "{{ hostvars[inventory_hostname_short]['groups']['vmhosts'][0] }}"
+    # first_vmhost: "{{ groups['vmhosts'] | first }}"
+    __vm_name: "{{ inventory_hostname_short }}"
+
+  # TODO:
+  #   - Choose best host (lowest usage, max avialable ram, etc.)
+  #   - Ensure unique hosts for each guest
+  #   - Ensure guest isn't already running on this (or other) host
+
+- debug: var=libvirt_uri
+#   # delegate_to: localhost
+# - debug: var=libvirt_uri
+#   delegate_to: localhost
+- debug: var=selected_host
+- debug: var=vm_name
+#   # delegate_to: localhost
+# - ansible.builtin.debug:
+#     var: hostvars[item]['selected_host']
+#   with_items: "{{ groups['vmhosts'] }}"
+#   run_once: true
+#   delegate_to: localhost
+# - ansible.builtin.debug:
+#     var: hostvars[item]['libvirt_uri']
+#   with_items: "{{ groups['vmhosts'] }}"
+#   run_once: true
+#   delegate_to: localhost
+
+# - fail: # stop for debugging
+
+
+# Create root ssh keys in target vmhost, and add to that hosts root authorized keys
+# Otherwise libvirt hangs. Security hole?
+#  ROCK64VM5 sshd[31205]: fatal: Timeout before authentication for 192.168.0.65 port 59508
+# Do we need to ditch libvirt?
+# No, just use delegate_to instead of uri
+
+# If clone, map nbd (and mount or symlink?)
+- name: "Configure NBD export on {{ file_server }}"
+  when: clone_id is defined
+  ansible.builtin.template:
+    src: "nbd_cow.conf.j2"
+    dest: "/etc/nbd-server/conf.d/{{ vm_name }}.conf"
+  delegate_to: "{{ file_server }}"
+  tags: clone
+  register: nbd_configure
+
+- name: Force nbd-server to reload the config
+  ansible.builtin.systemd_service:
+  #   state: reloaded
+    state: restarted
+    name: nbd-server
+  # NOT a true systemd service on rockpronas1, and
+  # systemd-sysv-generator doesn't recognize reload cmd
+  # ansible.builtin.command:
+  #   cmd: service nbd-server reload
+  delegate_to: "{{ file_server }}"
+  # become: true
+  run_once: true
+  tags: clone
+  when:
+    - clone_id is defined
+    - nbd_configure.changed
+  # Currently just kills the process, not sure how to proceed
+  # Doesn't kill it if something's already connected?
+
+# TODO:
+# - figure out NBD TLS
+# - figure out dynamic /dev/nbdX device
+# - or use nvme/tcp
+
+- name: "Delete NBD export from {{ file_server }} to VMHosts"
+  when:
+    - clone_id is defined
+    # - nbd_configure.changed
+  ansible.builtin.command:
+    cmd: "nbd-client -d /dev/nbd{{ clone_id }}"
+  delegate_to: "{{ selected_host }}"
+  tags: clone
+  ignore_errors: true # should really have idempotent moduls
+
+- name: "Map NBD export from {{ file_server }} to VMHosts"
+  when:
+    - clone_id is defined
+    # - nbd_configure.changed
+  ansible.builtin.command:
+    cmd: "nbd-client -N {{ vm_name }} {{ file_server }} /dev/nbd{{ clone_id }} -t {{ timeout }} -C {{ conns }} -b {{ block_size }} -persist"
+  delegate_to: "{{ selected_host }}"
+  tags: clone
+  vars:
+    timeout: '5'
+    conns: '1'  # '4'
+    block_size: '4096'
+  ignore_errors: true # should really have idempotent moduls
+
+# block nbd1: server does not support multiple connections per device
+
+
+# Ensure NFS 'settings' drive for vdb
+#   <source file='/var/lib/libvirt/images/nfs-pool/{{ vm_name }}-settings.img'/>
+
+# Randomize UUID? does virt-sysprep do this?
+  # <uuid>94bb6ed1-a20d-423f-a426-2ddb4b01f23a</uuid>
+  # automatically done by libvirt when omitting from xml
+  
+# Randomize interface mac addresses? does virt-sysprep do this?
+  # automatically done by libvirt when omitting from xml
+#     <interface type='network'>
+#       <mac address='52:54:00:80:33:b3'/>
+#       <source network='default'/>
+#       ...
+#     <interface type='bridge'>
+#       <mac address='52:54:00:d6:b6:af'/>
+#       <source bridge='br1'/>
+#       ...
+
+# For reliable DHCP with dnsmasq, either
+# - use predictable mac address (above)
+# - delete existing lease (below)
+
+- name: Make sure VMs are not already assigned leases
+  ansible.builtin.lineinfile:
+    path: /var/lib/misc/dnsmasq.leases
+    state: absent
+    regexp: "(?i){{ hostvars[item]['vm_name'] }}"
+  with_items: "{{ groups['vmguests'] }}"
+  run_once: true
+  delegate_to: "{{ dhcp_server }}"
+  register: deleted_leases
+
+- name: Force dnsmasq to reload the config
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: dnsmasq
+  run_once: true
+  delegate_to: "{{ dhcp_server }}"
+  when: deleted_leases.changed
+
+# - name: "Check pools on {{ selected_host }}"
+#   community.libvirt.virt_pool:
+#     uri: "{{ libvirt_uri }}"
+#     command: start
+#     name: "{{ item }}"
+#   register: pools
+#   delegate_to: "{{ selected_host }}"
+#   with_items:
+#     - default
+#     - nvramversion 1.3.0
+# XML IMPORT ISSUES
+# "msg": "The `lxml` module is not importable. Check the requirements."
+#  sudo yum install libxml2-devel libxslt-devel
+#  pip install --upgrade lxml
+# setuptools error
+
+
+# - debug: var=pools
+
+# requires community.libvirt version 1.3.0 and pip lxml installed by root on vmhost
+- name: Ensure no existing/conflicting VM (keep its nvram)
+  delegate_to: "{{ selected_host }}"
+  community.libvirt.virt:
+    # uri: "{{ libvirt_uri }}"
+    name: "{{ vm_name }}"
+    command: undefine
+    flags: keep_nvram
+    # force: true
+  ignore_errors: true
+
+# Defining a VM and making it autostart with host (or not). VM will be off after this task
+- name: Define vm from xml and disable autostart
+  delegate_to: "{{ selected_host }}"
+  community.libvirt.virt:
+    # uri: "{{ libvirt_uri }}"
+    command: define # create persistent domain
+    autostart: false  # requires command: define?
+    # name: "{{ vm_name }}"
+    # command: create # create transient domain # Broken: https://github.com/ansible-collections/community.libvirt/issues/41
+    # state: running
+    xml: "{{ lookup('template', 'vm_template.xml.j2') }}"
+
+- name: Start the VM
+  delegate_to: "{{ selected_host }}"
+  community.libvirt.virt:
+    # uri: "{{ libvirt_uri }}"
+    name: "{{ vm_name }}"
+    state: running
+  # when: false
+
+# Wait for boot?
+
+# Get current firewall info:
+# ansible vmguests -m ansible.posix.firewalld_info -i inventory.yml --become -K
+
+# # This module needs python-firewall or python3-firewall on managed nodes.
+# - name: permit traffic in default zone for https service
+#   ansible.posix.firewalld:
+#     service: galera
+#     permanent: true
+#     state: enabled
+# Already added to DB-Master with:
+# firewall-cmd --zone=public --add-service=galera --permanent
+# remove cockpit service?

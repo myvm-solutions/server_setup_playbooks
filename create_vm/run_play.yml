@@ -1,0 +1,45 @@
+---
+# This playbook deploys VMs
+# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 30
+
+- name: Check VM Host availability and prep
+  hosts: vmhosts
+  remote_user: garrettj
+  become: yes
+  # gather_facts: yes
+  gather_facts: no  # Speed up debugging
+  tags: prep
+
+  tasks:
+    - include_role:
+        name: prep_hosts
+
+- name: Propogate VM Host vars to Guests
+  hosts: vmhosts, vmguests
+  gather_facts: no
+  tasks:
+    - include_tasks:
+        file: tasks/propogate_vars.yml
+
+- name: Deploy the VMs
+  hosts: vmguests
+  remote_user: garrettj
+  become: yes
+  # remote_user: root
+  # become: no
+  gather_facts: no
+  tags: deploy, clone
+
+  tasks:
+    - include_role:
+        name: create_guests
+
+- name: Print final messages
+  hosts: all
+  remote_user: garrettj
+  gather_facts: no
+  tags: always
+
+  tasks:
+    - include_role:
+        name: end_messages

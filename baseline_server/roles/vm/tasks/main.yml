@@ -1,0 +1,63 @@
+---
+# This playbook contains specific tasks to configure VM Hosts.
+
+- name: install apt packages
+  ansible.builtin.apt:
+    update_cache: no
+    pkg:
+      - u-boot-tools
+      - bridge-utils
+      - vlan
+      - libvirt-daemon
+      - virtinst
+      - qemu-utils
+      - libvirt-clients
+      - libvirt-daemon-system
+      - dnsmasq
+      - qemu-kvm
+      - qemu-efi
+      - qemu-efi-arm
+      - ipxe-qemu
+      - nbd-client
+      - dmidecode # probably useless on ARM but prevents libvirtd from complaining
+      - python3-lxml  # fixes lxml error for libvirt ansible modules
+
+- name: install additional GUI packages
+  when:
+    - install_vm_gui is defined
+    - install_vm_gui
+  ansible.builtin.apt:
+    update_cache: no
+    pkg:
+      - netcat  # for vga/virtio/spice
+      - seabios # for vga/virtio/spice
+      # - vgabios # installed but maybe not needed?
+
+# SeLinux:
+# getsebool virt_use_nfs
+# getsebool -a | grep virt
+# sudo setsebool virt_use_nfs on
+
+- name: Set virt_use_nfs SELinux flag on & persistent
+  ansible.posix.seboolean:
+    name: virt_use_nfs
+    state: true
+    persistent: true
+
+
+# TODO:
+
+# name=NAS1
+# nfshost=10.255.254.1
+# nfspath=/mnt/vms/backing
+# mntpnt=/var/lib/libvirt/images/$name
+# sudo mkdir $mntpnt
+# sudo virsh pool-define-as --type netfs --source-host $nfshost --source-path $nfspath --source-format nfs --target $mntpnt --name $name #--print-xml
+# sudo virsh pool-autostart $name
+# sudo virsh pool-start $name
+
+# systemctl stop ksmtuned
+# systemctl stop ksm
+# systemctl disable ksm
+# systemctl disable ksmtuned
+# apt purge ksm ?

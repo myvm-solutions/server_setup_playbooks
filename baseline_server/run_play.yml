@@ -1,0 +1,50 @@
+---
+# This playbook deploys the whole application stack in this site.
+# time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 30
+
+- name: apply common configuration to all nodes
+  hosts: all
+  remote_user: garrettj
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - common
+    - networkd_bridge
+    - selinux
+
+- name: configure and prep VM Hosts
+  hosts: vmhosts
+  remote_user: garrettj
+  become: yes
+  gather_facts: no
+
+  roles:
+    - vm
+
+
+
+
+# - name: configure and deploy the webservers and application code
+#   hosts: webservers
+#   remote_user: root
+
+#   roles:
+#     - web
+
+# - name: deploy MySQL and configure the databases
+#   hosts: dbservers
+#   remote_user: root
+
+#   roles:
+#     - db
+
+
+- name: Print final messages
+  hosts: vmhosts
+  # remote_user: root
+  remote_user: garrettj
+  gather_facts: no
+
+  roles:
+    - end_messages

@@ -1,0 +1,107 @@
+---
+# This playbook contains common plays that will be run on all nodes.
+
+# Set these in global vars file?
+- name: Set playbook vars [services to disable]
+  set_fact:
+    disable_armbian_services:
+      - armbian-zram-config
+      - armbian-ramlog
+      # - unattended-upgrades # ??? what's this even do?
+
+# - name: test to see if selinux is running
+#   command: getenforce # or sestatus for more detials?
+#   register: sestatus
+#   changed_when: false
+#   ignore_errors: true
+#   when: false # Have to install/enable SELinux first
+
+# no journal after selinux, maybe try disabling armbian-ramlog? ...success
+
+# sudo vi /etc/default/armbian-ramlog
+# sudo systemctl disable armbian-ramlog
+# sudo vi /etc/default/armbian-zram-config
+# sudo systemctl disable armbian-zram-config
+
+- name: Disable Armbian configs
+  ansible.builtin.lineinfile:
+    path: "/etc/default/{{ item }}"
+    regexp: '^ENABLED='
+    line: ENABLED=false
+  loop: "{{ disable_armbian_services }}"
+  notify: reboot_host
+
+- name: Disable Armbian services
+  ansible.builtin.systemd_service:
+    name: "{{ item }}"
+    enabled: false
+    masked: true
+    state: stopped
+  loop: "{{ disable_armbian_services }}"
+  notify: reboot_host
+# try stopping processes before proceeding... /var/log/audit is missing and auditd won't start later
+
+- name: install apt packages
+  # Todo: streamline package list for prod
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 28800 # 8 Hours
+    pkg:
+      - screen
+      - git
+      - vim
+      - locate
+      - net-tools
+      - traceroute
+      - nfs-common
+      - rxvt-unicode  # available on Armbian Jammy
+      # - rxvt-unicode-256color
+      - prometheus-node-exporter
+
+- name: Copy local ssh authorizaiton
+  ansible.builtin.copy:
+    src: ~/.ssh/authorized_keys
+    dest: ~/.ssh/
+    # owner: root
+    # group: root
+    mode: '0644'
+  become: no
+
+# garrettj@pine64s0:~$ apt-mark showhold
+# armbian-firmware
+# linux-bionic-root-next-pine64so
+# linux-dtb-next-sunxi64
+# linux-image-next-sunxi64
+# linux-u-boot-pine64so-next
+# ? linux-headers-next-sunxi64 ?
+
+
+# processes_to_disable="armbian-zram-config armbian-ramlog unattended-upgrades NetworkManager"
+# for i in $processes_to_disable; do
+#  #sudo systemctl stop $i || echo couldn\'t stop $i
+#  sudo systemctl disable $i || echo couldn\'t disable $i
+#  systemctl status $i
+# done
+
+
+
+
+# - name: Install ntp
+#   yum:
+#     name: ntp
+#     state: present
+#   tags: ntp
+
+# - name: Configure ntp file
+#   template:
+#     src: ntp.conf.j2
+#     dest: /etc/ntp.conf
+#   tags: ntp
+#   notify: restart ntp
+
+# - name: Start the ntp service
+#   service:
+#     name: ntpd
+#     state: started
+#     enabled: yes
+#   tags: ntp

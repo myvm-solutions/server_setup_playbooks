@@ -1,0 +1,22 @@
+---
+# Common handlers
+
+# # Set these in global vars file?
+# - name: Set playbook vars
+#   set_fact:
+#     disable_armbian_services:
+#       - armbian-zram-config
+#       - armbian-ramlog
+#       # - unattended-upgrades # ??? what's this even do?
+
+# test to see if handler is run once with notifies from multiple hosts
+- name: restart_dhcp
+  ansible.builtin.systemd_service:
+    state: restarted
+    name: dnsmasq.service
+  run_once: true
+  delegate_to: "{{ dhcp_server }}"
+
+- name: reboot_host
+  ansible.builtin.reboot:
+

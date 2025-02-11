@@ -1,0 +1,29 @@
+---
+# This playbook contains common plays that will be run on all nodes.
+
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts
+  when: false
+
+- name: Print SELinux status if available
+  ansible.builtin.debug:
+    var: sestatus_post
+  when: sestatus_post is defined
+
+# - name: Get Service Status
+#   ansible.builtin.systemd_service:
+#     name: "armbian-ramlog.service"
+#   register: post_service_states
+
+# - debug:
+#     msg:
+#       - "post_service_states.status.UnitFileState  : {{ post_service_states.status.UnitFileState }}"
+#       - "post_service_states.status.LoadState      : {{ post_service_states.status.LoadState }}"
+#       - "post_service_states.status.ActiveState    : {{ post_service_states.status.ActiveState }}"
+
+# - name: Ensure armbian-ramlog is disabled and/or masked
+#   assert:
+#     that: post_service_states.status.UnitFileState in ['disabled', 'masked']
+#     fail_msg: "Ramlog service invalid state: {{ post_service_states.status.UnitFileState }}"
+#     success_msg: "Ramlog service has been {{ post_service_states.status.UnitFileState }}"

@@ -1,0 +1,55 @@
+---
+# Propogate hostvars from VMHosts to VMGuests
+
+# - debug:
+#     var: hostvars['localhost']
+#   delegate_to: localhost
+
+# - debug:
+#     var: hostvars['localhost']['host_pairs']
+
+- name: CHECK FACTS
+  debug:
+    msg:
+      - "hosts: {{ vmhosts }}"
+      - "first host: {{ first_vmhost }}"
+      - "the vars: {{ hostvars[first_vmhost]['host_pairs'] }}"
+  vars:
+    vmhosts: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) }}" # only select active hosts
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
+
+- name: CHECK FACTS
+  debug:
+    var: hostvars[first_vmhost]
+  vars:
+    vmhosts: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) }}" # only select active hosts
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
+
+- name: SET FACT
+  set_fact:
+    host_pairs: "{{ hostvars[first_vmhost]['host_pairs'] }}"
+    hosts_in_scope: "{{ hostvars[first_vmhost]['hosts_in_scope'] }}"
+  vars:
+    first_vmhost: "{{ groups['vmhosts'] | intersect(ansible_play_hosts) | first }}" # only select active hosts
+  delegate_to: localhost
+  run_once: true
+
+- name: Assert selected_host is still active in ansible_play_hosts
+  assert:
+    that: selected_host in ansible_play_hosts
+    # fail_msg: "{{ vm_name  }} assigned host {{ selected_host }} is not available"
+    # success_msg: "{{ vm_name  }} assigned host {{ selected_host }} is available"
+    fail_msg: "{{ vm_name | upper }} assigned host {{ selected_host | upper }} is not available"
+    success_msg: "{{ vm_name | upper }} assigned host {{ selected_host | upper }} is available"
+  loop: "{{ groups['vmguests'] }}"
+  loop_control:
+    label: "{{ vm_name }} -> {{ selected_host }}"
+    loop_var: vm_name
+  vars:
+    selected_host: "{{ host_pairs[vm_name]['selected_host'] }}"
+  delegate_to: localhost
+  run_once: true
