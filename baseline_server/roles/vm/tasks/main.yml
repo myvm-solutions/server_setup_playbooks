@@ -21,6 +21,7 @@
       - nbd-client
       - dmidecode # probably useless on ARM but prevents libvirtd from complaining
       - python3-lxml  # fixes lxml error for libvirt ansible modules
+      - prometheus-libvirt-exporter
 
 - name: install additional GUI packages
   when:
