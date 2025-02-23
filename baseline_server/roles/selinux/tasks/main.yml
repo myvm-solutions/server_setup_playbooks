@@ -58,12 +58,15 @@
       - auditd
       - python3-semanage  # required for ansible mgmt
       - python3-selinux   # required for ansible mgmt
-  notify: reboot_host
+  notify:
+    - activate_selinux
+    - reboot_host
 
   # selinux-activate
   # WARNING: NOT IDEMPOTENT
-- name: Activate selinux
-  command: selinux-activate
+# - name: Activate selinux
+#   command: selinux-activate
+# moved to handlers
 
   # # prevent lockout:
   # sudo vi /etc/selinux/config
@@ -83,7 +86,9 @@
     regexp: '^extraargs=(.*?)(?= selinux|$)'
     backrefs: true
     line: 'extraargs=\1 selinux=1 security=selinux'
-  notify: reboot_host
+  notify:
+    - activate_selinux
+    - reboot_host
 
 - name: Check selinux status
   # command: getenforce # or sestatus for more detials?

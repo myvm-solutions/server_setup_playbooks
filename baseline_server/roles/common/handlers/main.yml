@@ -17,6 +17,8 @@
   run_once: true
   delegate_to: "{{ dhcp_server }}"
 
+- name:
+  command: selinux-activate
+
 - name: reboot_host
   ansible.builtin.reboot:
-
