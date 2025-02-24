@@ -10,4 +10,18 @@ vmhosts:
     rock64vm6:
     rockprovm:
   vars:
-    # ansible_become_password: "{{ ansible_password }}"
+    install_disk: sda
+    install_partitions:
+    # start/end values must be in GiB
+    # omit to assume beginning or end of disk
+      - part_num: 1
+        part_end: 32
+        name: ROOT
+      - part_num: 2
+        part_start: 32
+        part_end: 40
+        name: SWAP
+        flags: ["swap"]
+      - part_num: 3
+        part_start: 40
+        name: ZFSMEMBER

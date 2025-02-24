@@ -1,6 +1,31 @@
 ---
 # This playbook contains common plays that will be run on all nodes.
 
+# - debug: var=ansible_devices
+# - debug: var=ansible_mounts
+
+- name: Install Armbian to local storage
+  when:
+    - install_disk is defined
+    - install_disk is in ansible_devices
+    - "'mmcblk' in root_mount['device']"
+  vars:
+    root_mount: "{{ ansible_mounts | selectattr('mount', 'eq', '/') | first }}"
+
+  block:
+    - name: Set up local storage partition table
+      ansible.builtin.include_role:
+        name: myvm.solutions.partition_table
+      vars:
+        wipe_table: true
+
+    - name: "Install Armbian to /dev/{{ install_disk }}"
+      debug:
+        msg: "NOTE: run 'armbian-install' manually as it's an interactive script"
+
+    # TODO: modify/replace armbian-install with automated script
+
+
 # Set these in global vars file?
 - name: Set playbook vars [services to disable]
   set_fact:
