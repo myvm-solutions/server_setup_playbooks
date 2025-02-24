@@ -2,11 +2,23 @@
 # This playbook deploys the whole application stack in this site.
 # time ansible-playbook run_play.yml -i inventory.yml -k -K  -T 30
 
+- name: Gather and save facts to file
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: save all facts to host specific file
+      copy:
+        content: "{{ hostvars[inventory_hostname] | to_nice_yaml }}"
+        # content: "{{ ansible_delegated_vars[inventory_hostname].vars | to_nice_yaml }}"
+        dest: "{{ playbook_dir }}/{{ inventory_hostname_short }}_facts.yml"
+      delegate_to: localhost
+
 - name: apply common configuration to all nodes
   hosts: all
   remote_user: garrettj
   become: yes
-  gather_facts: yes
+  gather_facts: no
 
   roles:
     - common
