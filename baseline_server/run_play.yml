@@ -7,10 +7,9 @@
   gather_facts: yes
 
   tasks:
-    - name: save all facts to host specific file
+    - name: Save facts to host-specific log file
       copy:
         content: "{{ hostvars[inventory_hostname] | to_nice_yaml }}"
-        # content: "{{ ansible_delegated_vars[inventory_hostname].vars | to_nice_yaml }}"
         dest: "{{ playbook_dir }}/{{ inventory_hostname_short }}_facts.yml"
       delegate_to: localhost
       changed_when: false # Don't count as a changed task since it's just logging

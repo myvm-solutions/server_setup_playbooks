@@ -13,7 +13,7 @@
 
 # - debug:
 #     var: host_pairs
-  
+
 - name: Choose VMHOST and set other Facts
   set_fact:
     vm_name: "{{ __vm_name }}"
@@ -35,12 +35,12 @@
   #   - Ensure unique hosts for each guest
   #   - Ensure guest isn't already running on this (or other) host
 
-- debug: var=libvirt_uri
+# - debug: var=selected_host
+# - debug: var=vm_name
+# - debug: var=libvirt_uri
 #   # delegate_to: localhost
 # - debug: var=libvirt_uri
 #   delegate_to: localhost
-- debug: var=selected_host
-- debug: var=vm_name
 #   # delegate_to: localhost
 # - ansible.builtin.debug:
 #     var: hostvars[item]['selected_host']
@@ -129,7 +129,7 @@
 # Randomize UUID? does virt-sysprep do this?
   # <uuid>94bb6ed1-a20d-423f-a426-2ddb4b01f23a</uuid>
   # automatically done by libvirt when omitting from xml
-  
+
 # Randomize interface mac addresses? does virt-sysprep do this?
   # automatically done by libvirt when omitting from xml
 #     <interface type='network'>
