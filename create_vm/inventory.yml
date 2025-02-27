@@ -17,7 +17,7 @@ vmguests:
       clone_from: DB-Master
     DB-Cluster2:
       clone_id: "2"
-      clone_from: DB-Master      
+      clone_from: DB-Master
     DB-Cluster3:
       clone_id: "3"
-      clone_from: DB-Master      
+      clone_from: DB-Master
