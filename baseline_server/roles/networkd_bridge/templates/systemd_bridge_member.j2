@@ -5,11 +5,18 @@
 ## systemd networkd bridge member ##
 
 [Match]
-Name={{ item }}*
+Name={{ dev }}*
 
+{% if dev in ['enp'] %}
+# enp1s0 is 10gbps pcie card
+[Link]
+RequiredForOnline=no
+#MTUBytes=9000
+{% else %}
 #[Link]
 #RequiredForOnline=no
 #MTUBytes=9000
+{% endif %}
 
 [Network]
-Bridge=br{{ bridge_num }}
+Bridge=br{{ br }}

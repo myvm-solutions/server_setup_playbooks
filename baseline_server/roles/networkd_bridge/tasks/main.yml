@@ -4,29 +4,36 @@
 # Set these in global vars file?
 - name: Set playbook vars
   set_fact:
-    bridge_num: "1"
+    # bridge_num: "1"
     dhcp_server: "192.168.0.252"  # DrSUSE
+    bridges:
+      1: eth    # built-in rock64 eth0
+      2: enx    # usb?
+      10: enp   # 10g rockpro pcie enp1s0
 
 - name: Configure systemd bridge device
-  when: bridge_num is defined
   ansible.builtin.template:
-    src: "systemd_brx.{{ item }}.j2"
-    dest: "/etc/systemd/network/br{{ bridge_num }}.{{ item }}"
-  with_items:
-    - netdev
-    - network
+    src: "systemd_brx.{{ ci }}.j2"
+    dest: "/etc/systemd/network/br{{ br }}.{{ ci }}"
+  loop: "{{ bridges | dict2items | product(config_items) | list }}"
+  vars:
+    config_items:
+      - netdev
+      - network
+    br: "{{ item.0.key }}"
+    dev: "{{ item.0.value }}"
+    ci: "{{ item.1 }}"
   register: bridge_device
   notify: reboot_host
 
 - name: Configure systemd bridge members
-  when: bridge_num is defined
   ansible.builtin.template:
     src: "systemd_bridge_member.j2"
-    dest: "/etc/systemd/network/{{ item }}_br{{ bridge_num }}_member.network"
-  with_items:
-    - eth
-    - enx
-    - enp
+    dest: "/etc/systemd/network/{{ dev }}_br{{ br }}_member.network"
+  loop: "{{ bridges | dict2items }}"
+  vars:
+    br: "{{ item.key }}"
+    dev: "{{ item.value }}"
   register: bridge_members
   notify: reboot_host
 
@@ -36,7 +43,7 @@
     # do we need separate services to unmask BEFORE enabling?
     enabled: true
     masked: no
-  when: bridge_num is defined # always run this task when above bridge and NM task have run
+  # when: bridge_num is defined # always run this task when above bridge and NM task have run
   register: systemd_enabled
   notify: reboot_host
 
@@ -63,10 +70,10 @@
     pkg:
       - network-manager
       - wpasupplicant
-  # when: purge_nm # only when all networkd bridge tasks succeed
+  when: purge_nm # only when all networkd bridge tasks succeed
   # register: nm_purged
 
-# Below should be reconfigured as handlers
+# Below could be reconfigured as handlers
 
 # Delete entris from DHCP leases file after reconfiguring netdevs
 - name: Clear entries from DHCP leases
@@ -79,15 +86,3 @@
   delegate_to: "{{ dhcp_server }}"
   when: hostvars[item]['needs_reboot']
   notify: restart_dhcp
-
-# # test to see if handler is run once with notifies from multiple hosts
-# - name: Restart DHCP service
-#   ansible.builtin.systemd_service:
-#     state: restarted
-#     name: dnsmasq.service
-#   run_once: true
-#   delegate_to: "{{ dhcp_server }}"
-
-# - name: Reboot hosts
-#   ansible.builtin.reboot:
-#   when: needs_reboot
