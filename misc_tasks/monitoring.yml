@@ -12,15 +12,15 @@
 # configure db in /etc/grafana/grafana.ini
 
 
-# getsebool -a | grep grafana 
+# getsebool -a | grep grafana
 # Another essential step was to ensure the httpd_can_network_connect boolean was enabled, allowing HTTP services like Grafana to connect over the network:
-# sudo setsebool -P httpd_can_network_connect on 
+# sudo setsebool -P httpd_can_network_connect on
 
 
 # SeLinux:
 # getsebool grafana_can_tcp_connect_mysql_port
 # getsebool -a | grep grafana
-# sudo setsebool grafana_can_tcp_connect_mysql_port on
+# sudo setsebool -P grafana_can_tcp_connect_mysql_port on
 
 - set_facts:
     grafana_sebools:
@@ -34,7 +34,7 @@
     persistent: true
 
 
-#  To temporarily disable dontaudit rules, allowing all denials to be logged, 
+#  To temporarily disable dontaudit rules, allowing all denials to be logged,
 #  run the following command as the Linux root user:
 # ~]# semodule -DB
 
